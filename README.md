@@ -20,7 +20,7 @@ Converts lamport fees to SOL
 Displays: transactions by type, recent transactions, failed transactions
 Setup
 
-Clone the repo
-pip install requests python-dotenv
-Create a .env file: HELIUS_API_KEY=your_key_here
-Run python main.py
+- Clone the repo
+- pip install requests python-dotenv
+- Create a .env file: HELIUS_API_KEY=your_key_here
+- Run python main.py
