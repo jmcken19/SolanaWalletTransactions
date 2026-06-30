@@ -3,6 +3,7 @@ Solana Wallet Transaction Tracker
 A Python + SQL project that fetches transaction history for a Solana wallet using the Helius API, stores it in a local SQLite database, and displays summary reports in the terminal.
 
 [Terminal Output]
+
 <img width="699" height="325" alt="sql" src="https://github.com/user-attachments/assets/05f9b033-57c7-44f2-934f-f5343fa46503" />
 
 Tech Stack
