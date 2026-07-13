@@ -22,6 +22,10 @@ class Handler(BaseHTTPRequestHandler):
             self._get_tokens()
         elif parsed.path == "/more_transactions":
             self._get_more_transactions()
+        elif parsed.path == "/token_detail":
+            params = parse_qs(parsed.query)
+            token = params.get("token", [""])[0].strip()
+            self._get_token_detail(token)
         else:
             self.send_error(404)
 
@@ -106,6 +110,67 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
 
             data = json.dumps(rows).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        except Exception as e:
+            err = json.dumps({"error": str(e)}).encode()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
+
+    def _get_token_detail(self, token):
+        try:
+            from db import get_connection
+            import psycopg2.extras
+
+            conn = get_connection()
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        SUM(CASE WHEN direction = 'in'  THEN 1 ELSE 0 END)      AS count_in,
+                        SUM(CASE WHEN direction = 'out' THEN 1 ELSE 0 END)      AS count_out,
+                        SUM(CASE WHEN direction = 'in'  THEN amount ELSE 0 END) AS total_in,
+                        SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) AS total_out,
+                        TO_TIMESTAMP(MIN(block_time))::TEXT                     AS first_seen,
+                        TO_TIMESTAMP(MAX(block_time))::TEXT                     AS last_seen
+                    FROM (
+                        SELECT token_in  AS token, amount_in  AS amount, 'in'  AS direction, block_time
+                        FROM transactions WHERE token_in  = %s
+                        UNION ALL
+                        SELECT token_out AS token, amount_out AS amount, 'out' AS direction, block_time
+                        FROM transactions WHERE token_out = %s
+                    ) t
+                """, (token, token))
+                stats = dict(cur.fetchone())
+
+                cur.execute("""
+                    SELECT type, COUNT(*) AS count
+                    FROM transactions
+                    WHERE token_in = %s OR token_out = %s
+                    GROUP BY type ORDER BY count DESC
+                """, (token, token))
+                types = [{"type": r["type"], "count": int(r["count"])} for r in cur.fetchall()]
+
+            conn.close()
+
+            result = {
+                "token":      token,
+                "count_in":   int(stats["count_in"]   or 0),
+                "count_out":  int(stats["count_out"]  or 0),
+                "total_in":   float(stats["total_in"]  or 0),
+                "total_out":  float(stats["total_out"] or 0),
+                "first_seen": str(stats["first_seen"]  or ""),
+                "last_seen":  str(stats["last_seen"]   or ""),
+                "types":      types,
+            }
+
+            data = json.dumps(result).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(data)))

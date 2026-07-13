@@ -170,7 +170,32 @@
       display: none;
       width: 100%;
       height: 500px;
+      cursor: pointer;
     }
+
+    #token-detail {
+      display: none;
+      border-top: 1px solid #e8e8e8;
+      padding: 16px 24px 20px;
+    }
+
+    #token-detail-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #000;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 4px 20px;
+      font-family: 'SF Mono', ui-monospace, 'Fira Code', 'Courier New', monospace;
+      font-size: 11px;
+    }
+
+    .detail-grid .label { color: #aaa; }
+    .detail-grid .value { color: #000; }
   </style>
 </head>
 <body>
@@ -198,6 +223,10 @@
       <span id="bubble-label">Bubble Map</span>
       <div id="bubble-placeholder">Waiting for input...</div>
       <canvas id="bubble-canvas"></canvas>
+      <div id="token-detail">
+        <div id="token-detail-name"></div>
+        <div class="detail-grid" id="token-detail-grid"></div>
+      </div>
     </div>
   </div>
 
@@ -362,6 +391,9 @@
 
       camera.position.set(0, ring * 0.35, ring * 1.9);
 
+      const clickableMeshes = [];
+      const meshTokenMap    = new Map();
+
       tokens.forEach((token, i) => {
         const angle  = (i / tokens.length) * Math.PI * 2;
         const size   = minSize + (token.count / maxCount) * (maxSize - minSize);
@@ -372,6 +404,8 @@
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(Math.cos(angle) * ring, 0, Math.sin(angle) * ring);
         scene.add(mesh);
+        clickableMeshes.push(mesh);
+        meshTokenMap.set(mesh.uuid, token.token);
 
         // Wireframe overlay
         const wfMat  = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true, transparent: true, opacity: 0.12 });
@@ -383,6 +417,21 @@
         const label = makeLabel(token.token, token.count);
         label.position.set(mesh.position.x, mesh.position.y + size + 0.6, mesh.position.z);
         scene.add(label);
+      });
+
+      // Click to drill down
+      const raycaster = new THREE.Raycaster();
+      canvas.addEventListener('click', e => {
+        const rect  = canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((e.clientX - rect.left)  / rect.width)  *  2 - 1,
+          ((e.clientY - rect.top)   / rect.height) * -2 + 1
+        );
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(clickableMeshes);
+        if (hits.length > 0) {
+          fetchTokenDetail(meshTokenMap.get(hits[0].object.uuid));
+        }
       });
 
       bubbleAnimating = true;
@@ -399,6 +448,28 @@
         camera.updateProjectionMatrix();
         renderer.setSize(nW, H);
       });
+    }
+
+    function fetchTokenDetail(tokenName) {
+      fetch(`/token_detail?token=${encodeURIComponent(tokenName)}`)
+        .then(r => r.json())
+        .then(d => {
+          const net    = d.total_in - d.total_out;
+          const netStr = (net >= 0 ? '+' : '') + net.toFixed(2);
+          const types  = d.types.map(t => `${t.type} (${t.count})`).join(' · ');
+
+          document.getElementById('token-detail-name').textContent = d.token;
+          document.getElementById('token-detail-grid').innerHTML = `
+            <span class="label">Received</span><span class="value">${d.count_in} txns · ${d.total_in.toFixed(2)}</span>
+            <span class="label">Sent</span><span class="value">${d.count_out} txns · ${d.total_out.toFixed(2)}</span>
+            <span class="label">Net</span><span class="value">${netStr}</span>
+            <span class="label">First seen</span><span class="value">${d.first_seen.slice(0, 10)}</span>
+            <span class="label">Last seen</span><span class="value">${d.last_seen.slice(0, 10)}</span>
+            <span class="label">By type</span><span class="value">${types}</span>
+          `;
+          document.getElementById('token-detail').style.display = 'block';
+        })
+        .catch(() => {});
     }
 
     function makeLabel(name, count) {
