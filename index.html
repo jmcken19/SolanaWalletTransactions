@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 80px;
+      padding-bottom: 80px;
+    }
+
+    #card {
+      border: 1.5px solid #000;
+      padding: 28px 32px 32px;
+      width: 540px;
+      flex-shrink: 0;
+    }
+
+    #card-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #000;
+      margin-bottom: 18px;
+      display: block;
+    }
+
+    #wallet {
+      display: block;
+      width: 100%;
+      font-family: 'SF Mono', ui-monospace, 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      color: #aaa;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      padding: 4px 0 8px;
+      outline: none;
+      letter-spacing: 0.01em;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    #wallet.active {
+      color: #000;
+      border-bottom-color: #000;
+    }
+
+    #wallet::selection { background: #000; color: #fff; }
+
+    #enter {
+      display: block;
+      width: 100%;
+      margin-top: 20px;
+      padding: 10px 0;
+      background: #000;
+      color: #fff;
+      border: none;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #enter:hover  { background: #333; }
+    #enter:active { background: #000; }
+
+    /* ── Terminal ───────────────────────────────────────────────────────────── */
+    #terminal {
+      width: 540px;
+      margin-top: 16px;
+      border: 1.5px solid #000;
+      flex-shrink: 0;
+      padding: 20px 24px;
+    }
+
+    #terminal-title {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 10px;
+    }
+
+    #output {
+      font-family: 'SF Mono', ui-monospace, 'Fira Code', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.75;
+      color: #000;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+
+    #output .muted { color: #aaa; }
+
+    /* ── Bubble map ─────────────────────────────────────────────────────────── */
+    #bubble-wrap {
+      width: 540px;
+      margin-top: 16px;
+      border: 1.5px solid #000;
+      flex-shrink: 0;
+    }
+
+    #bubble-label {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #000;
+      padding: 14px 24px 0;
+    }
+
+    #bubble-placeholder {
+      padding: 20px 24px;
+      font-family: 'SF Mono', ui-monospace, 'Fira Code', 'Courier New', monospace;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    #bubble-canvas {
+      display: none;
+      width: 100%;
+      height: 320px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="card">
+    <span id="card-label">Wallet Address</span>
+    <input
+      id="wallet"
+      type="text"
+      value="FuUKYBncpU3BSJ43hgKigKhzYrigWUEja3n69gzNTxeP"
+      spellcheck="false"
+      autocomplete="off"
+    >
+    <button id="enter">Enter</button>
+  </div>
+
+  <div id="terminal">
+    <span id="terminal-title">Terminal</span>
+    <pre id="output"><span class="muted">Waiting for input...</span></pre>
+  </div>
+
+  <div id="bubble-wrap">
+    <span id="bubble-label">Bubble Map</span>
+    <div id="bubble-placeholder">Waiting for input...</div>
+    <canvas id="bubble-canvas"></canvas>
+  </div>
+
+  <script>
+    const DEFAULT = 'FuUKYBncpU3BSJ43hgKigKhzYrigWUEja3n69gzNTxeP';
+    const input   = document.getElementById('wallet');
+    const output  = document.getElementById('output');
+
+    input.addEventListener('focus', () => {
+      if (input.value === DEFAULT) input.select();
+    });
+
+    input.addEventListener('input', () => {
+      input.classList.toggle('active', input.value !== DEFAULT && input.value !== '');
+    });
+
+    input.addEventListener('blur', () => {
+      if (input.value.trim() === '') {
+        input.value = DEFAULT;
+        input.classList.remove('active');
+      }
+    });
+
+    document.getElementById('enter').addEventListener('click', () => {
+      const addr = input.value.trim();
+      if (addr) console.log('Wallet:', addr);
+    });
+  </script>
+</body>
+</html>
