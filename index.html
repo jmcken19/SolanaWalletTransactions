@@ -111,6 +111,8 @@
       color: #000;
       white-space: pre;
       overflow-x: auto;
+      max-height: 540px;
+      overflow-y: auto;
     }
 
     #output .muted { color: #aaa; }
@@ -213,18 +215,6 @@
       output.textContent = '';
       enterBtn.disabled  = true;
       enterBtn.textContent = 'Running...';
-
-      // Reset bubble map
-      if (bubbleRenderer) {
-        bubbleAnimating = false;
-        bubbleRenderer.dispose();
-        bubbleRenderer = null;
-      }
-      const canvas = document.getElementById('bubble-canvas');
-      const placeholder = document.getElementById('bubble-placeholder');
-      canvas.style.display      = 'none';
-      placeholder.style.display = 'block';
-      placeholder.textContent   = 'Waiting for input...';
 
       const es = new EventSource(`/run?wallet=${encodeURIComponent(addr)}`);
       activeSource = es;
