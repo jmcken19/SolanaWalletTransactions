@@ -200,13 +200,13 @@
 
     /* ── Summary bar ────────────────────────────────────────────────────────── */
     #summary-bar {
-      display: none;
       width: min(1200px, 100%);
       margin-top: 16px;
       border: 1.5px solid #000;
-      display: grid;
       grid-template-columns: repeat(4, 1fr);
+      display: none;
     }
+    #summary-bar.visible { display: grid; }
 
     .stat-cell {
       padding: 16px 20px;
@@ -259,7 +259,8 @@
       margin-bottom: 16px;
     }
 
-    #trend-canvas { width: 100%; height: 200px; }
+    #trend-canvas-wrap { position: relative; width: 100%; height: 220px; }
+    #trend-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
 
     @media (max-width: 768px) {
       #summary-bar { grid-template-columns: repeat(2, 1fr); }
@@ -326,7 +327,7 @@
 
   <div id="trend-panel">
     <span id="trend-title">Activity Over Time — Transactions per Month</span>
-    <canvas id="trend-canvas"></canvas>
+    <div id="trend-canvas-wrap"><canvas id="trend-canvas"></canvas></div>
   </div>
 
   <script>
@@ -391,7 +392,7 @@
       showAllBtn.style.display = 'none';
 
       // Reset summary + trend
-      document.getElementById('summary-bar').style.display = 'none';
+      document.getElementById('summary-bar').classList.remove('visible');
       document.getElementById('trend-panel').style.display = 'none';
       if (trendChart) { trendChart.destroy(); trendChart = null; }
 
@@ -455,7 +456,7 @@
           document.getElementById('stat-usd-out').textContent = `$${fmtAmt(s.usd_out)}`;
           document.getElementById('stat-net').textContent    = `${net >= 0 ? '+' : ''}$${fmtAmt(net)}`;
           document.getElementById('stat-tokens').textContent = `${s.unique_tokens} unique tokens`;
-          document.getElementById('summary-bar').style.display = 'grid';
+          document.getElementById('summary-bar').classList.add('visible');
         })
         .catch(() => {});
     }
