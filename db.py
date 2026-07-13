@@ -22,11 +22,16 @@ def create_schema(conn) -> None:
             token_in    TEXT,
             token_out   TEXT,
             amount_out  REAL,
-            amount_in   REAL
+            amount_in   REAL,
+            wallet      TEXT
         )
     """
     with conn.cursor() as cur:
         cur.execute(sql)
+        # Add wallet column if upgrading an existing table
+        cur.execute("""
+            ALTER TABLE transactions ADD COLUMN IF NOT EXISTS wallet TEXT
+        """)
     conn.commit()
 
 
@@ -37,11 +42,11 @@ def insert_transactions(conn, rows: list[dict]) -> int:
     sql = """
         INSERT INTO transactions
             (signature, block_time, slot, fee, status, source, type,
-             description, token_in, token_out, amount_out, amount_in)
+             description, token_in, token_out, amount_out, amount_in, wallet)
         VALUES
             (%(signature)s, %(block_time)s, %(slot)s, %(fee)s, %(status)s,
              %(source)s, %(type)s, %(description)s, %(token_in)s,
-             %(token_out)s, %(amount_out)s, %(amount_in)s)
+             %(token_out)s, %(amount_out)s, %(amount_in)s, %(wallet)s)
         ON CONFLICT (signature) DO NOTHING
     """
     with conn.cursor() as cur:

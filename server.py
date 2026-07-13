@@ -18,7 +18,9 @@ class Handler(BaseHTTPRequestHandler):
             wallet = params.get("wallet", [""])[0].strip()
             self._stream_run(wallet)
         elif parsed.path == "/tokens":
-            self._get_tokens()
+            params = parse_qs(parsed.query)
+            wallet = params.get("wallet", [""])[0].strip()
+            self._get_tokens(wallet)
         else:
             self.send_error(404)
 
@@ -70,28 +72,47 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             self._send_event("[DONE]")
 
-    def _get_tokens(self):
+    def _get_tokens(self, wallet=""):
         try:
             from db import get_connection
             import psycopg2.extras
 
             conn = get_connection()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("""
-                    SELECT token, COUNT(*) AS count, SUM(amount) AS total_amount
-                    FROM (
-                        SELECT token_in  AS token, amount_in  AS amount
-                        FROM transactions
-                        WHERE token_in  IS NOT NULL AND token_in  <> ''
-                        UNION ALL
-                        SELECT token_out AS token, amount_out AS amount
-                        FROM transactions
-                        WHERE token_out IS NOT NULL AND token_out <> ''
-                    ) t
-                    GROUP BY token
-                    ORDER BY count DESC
-                    LIMIT 20
-                """)
+                if wallet:
+                    cur.execute("""
+                        SELECT token, COUNT(*) AS count, SUM(amount) AS total_amount
+                        FROM (
+                            SELECT token_in  AS token, amount_in  AS amount
+                            FROM transactions
+                            WHERE wallet = %s
+                              AND token_in  IS NOT NULL AND token_in  <> ''
+                            UNION ALL
+                            SELECT token_out AS token, amount_out AS amount
+                            FROM transactions
+                            WHERE wallet = %s
+                              AND token_out IS NOT NULL AND token_out <> ''
+                        ) t
+                        GROUP BY token
+                        ORDER BY count DESC
+                        LIMIT 20
+                    """, (wallet, wallet))
+                else:
+                    cur.execute("""
+                        SELECT token, COUNT(*) AS count, SUM(amount) AS total_amount
+                        FROM (
+                            SELECT token_in  AS token, amount_in  AS amount
+                            FROM transactions
+                            WHERE token_in  IS NOT NULL AND token_in  <> ''
+                            UNION ALL
+                            SELECT token_out AS token, amount_out AS amount
+                            FROM transactions
+                            WHERE token_out IS NOT NULL AND token_out <> ''
+                        ) t
+                        GROUP BY token
+                        ORDER BY count DESC
+                        LIMIT 20
+                    """)
                 rows = [
                     {
                         "token":        r["token"],

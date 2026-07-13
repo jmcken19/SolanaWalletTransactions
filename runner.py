@@ -16,6 +16,9 @@ def main(wallet: str) -> None:
     rows = parse_transactions(raw)
     print(f"  Parsed {len(rows)} valid rows")
 
+    for row in rows:
+        row['wallet'] = wallet
+
     inserted = insert_transactions(conn, rows)
     print(f"  Inserted {inserted} new rows into DB\n")
 
