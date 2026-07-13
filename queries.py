@@ -19,7 +19,7 @@ def summary_by_type(conn) -> None:
     pretty_table(rows, title="Transactions by type")
 
 
-def recent_transactions(conn, n: int = 10) -> None:
+def recent_transactions(conn, n: int = 500) -> None:
     with _cursor(conn) as cur:
         cur.execute("""
             SELECT SUBSTRING(signature, 1, 8) || '...' AS signature,
@@ -50,7 +50,6 @@ def failed_transactions(conn) -> None:
 
 def pretty_table(rows, title: str = "") -> None:
     if not rows:
-        print("No results")
         return
 
     headers = list(rows[0].keys())
