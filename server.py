@@ -29,6 +29,10 @@ class Handler(BaseHTTPRequestHandler):
             self._get_token_detail(token)
         elif parsed.path == "/prices":
             self._get_prices()
+        elif parsed.path == "/summary":
+            self._get_summary()
+        elif parsed.path == "/trend":
+            self._get_trend()
         else:
             self.send_error(404)
 
@@ -212,6 +216,105 @@ class Handler(BaseHTTPRequestHandler):
             err = str(e).encode()
             self.send_response(500)
             self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
+
+    def _get_summary(self):
+        try:
+            from db import get_connection
+            import psycopg2.extras
+
+            conn = get_connection()
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        COUNT(*)                                                      AS total_txns,
+                        TO_TIMESTAMP(MIN(block_time))::TEXT                           AS first_txn,
+                        TO_TIMESTAMP(MAX(block_time))::TEXT                           AS last_txn,
+                        COALESCE(SUM(CASE WHEN token_in  IN ('USDC','USDT','USDH')
+                                         THEN amount_in  ELSE 0 END), 0)              AS usd_in,
+                        COALESCE(SUM(CASE WHEN token_out IN ('USDC','USDT','USDH')
+                                         THEN amount_out ELSE 0 END), 0)              AS usd_out
+                    FROM transactions
+                """)
+                row = dict(cur.fetchone())
+
+                cur.execute("""
+                    SELECT COUNT(DISTINCT token) AS unique_tokens
+                    FROM (
+                        SELECT token_in  AS token FROM transactions
+                        WHERE token_in  IS NOT NULL AND token_in  <> ''
+                        UNION
+                        SELECT token_out AS token FROM transactions
+                        WHERE token_out IS NOT NULL AND token_out <> ''
+                    ) t
+                """)
+                row["unique_tokens"] = cur.fetchone()["unique_tokens"]
+            conn.close()
+
+            result = {
+                "total_txns":    int(row["total_txns"]),
+                "first_txn":     str(row["first_txn"] or ""),
+                "last_txn":      str(row["last_txn"]  or ""),
+                "usd_in":        float(row["usd_in"]),
+                "usd_out":       float(row["usd_out"]),
+                "unique_tokens": int(row["unique_tokens"]),
+            }
+            data = json.dumps(result).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception as e:
+            err = json.dumps({"error": str(e)}).encode()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
+
+    def _get_trend(self):
+        try:
+            from db import get_connection
+            import psycopg2.extras
+
+            conn = get_connection()
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        TO_CHAR(TO_TIMESTAMP(block_time), 'YYYY-MM') AS month,
+                        COUNT(*)                                       AS txn_count,
+                        COALESCE(SUM(CASE WHEN token_in  IN ('USDC','USDT','USDH')
+                                         THEN amount_in  ELSE 0 END), 0) AS usd_in,
+                        COALESCE(SUM(CASE WHEN token_out IN ('USDC','USDT','USDH')
+                                         THEN amount_out ELSE 0 END), 0) AS usd_out
+                    FROM transactions
+                    GROUP BY month
+                    ORDER BY month
+                """)
+                rows = [
+                    {
+                        "month":     r["month"],
+                        "txn_count": int(r["txn_count"]),
+                        "usd_in":    float(r["usd_in"]),
+                        "usd_out":   float(r["usd_out"]),
+                    }
+                    for r in cur.fetchall()
+                ]
+            conn.close()
+
+            data = json.dumps(rows).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception as e:
+            err = json.dumps({"error": str(e)}).encode()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(err)))
             self.end_headers()
             self.wfile.write(err)

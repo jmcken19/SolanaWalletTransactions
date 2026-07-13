@@ -6,6 +6,7 @@
   <title>Solana Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -196,6 +197,76 @@
 
     .detail-grid .label { color: #aaa; }
     .detail-grid .value { color: #000; }
+
+    /* ── Summary bar ────────────────────────────────────────────────────────── */
+    #summary-bar {
+      display: none;
+      width: min(1200px, 100%);
+      margin-top: 16px;
+      border: 1.5px solid #000;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .stat-cell {
+      padding: 16px 20px;
+      border-right: 1px solid #e8e8e8;
+    }
+    .stat-cell:last-child { border-right: none; }
+
+    .stat-label {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      display: block;
+      font-family: 'SF Mono', ui-monospace, 'Fira Code', 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: #000;
+      line-height: 1.2;
+    }
+
+    .stat-sub {
+      display: block;
+      font-size: 10px;
+      color: #aaa;
+      margin-top: 3px;
+    }
+
+    /* ── Trend panel ────────────────────────────────────────────────────────── */
+    #trend-panel {
+      display: none;
+      width: min(1200px, 100%);
+      margin-top: 16px;
+      border: 1.5px solid #000;
+      padding: 20px 24px 24px;
+    }
+
+    #trend-title {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #000;
+      margin-bottom: 16px;
+    }
+
+    #trend-canvas { width: 100%; height: 200px; }
+
+    @media (max-width: 768px) {
+      #summary-bar { grid-template-columns: repeat(2, 1fr); }
+      .stat-cell:nth-child(2) { border-right: none; }
+      .stat-cell:nth-child(3) { border-top: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8; }
+      .stat-cell:nth-child(4) { border-top: 1px solid #e8e8e8; }
+    }
   </style>
 </head>
 <body>
@@ -210,6 +281,29 @@
       autocomplete="off"
     >
     <button id="enter">Enter</button>
+  </div>
+
+  <div id="summary-bar">
+    <div class="stat-cell">
+      <span class="stat-label">Total Transactions</span>
+      <span class="stat-value" id="stat-total">—</span>
+      <span class="stat-sub" id="stat-period">—</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-label">USD Received</span>
+      <span class="stat-value" id="stat-usd-in">—</span>
+      <span class="stat-sub">stablecoins only</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-label">USD Sent</span>
+      <span class="stat-value" id="stat-usd-out">—</span>
+      <span class="stat-sub">stablecoins only</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-label">Net USD Position</span>
+      <span class="stat-value" id="stat-net">—</span>
+      <span class="stat-sub" id="stat-tokens">—</span>
+    </div>
   </div>
 
   <div id="panels">
@@ -228,6 +322,11 @@
         <div class="detail-grid" id="token-detail-grid"></div>
       </div>
     </div>
+  </div>
+
+  <div id="trend-panel">
+    <span id="trend-title">Activity Over Time — Transactions per Month</span>
+    <canvas id="trend-canvas"></canvas>
   </div>
 
   <script>
@@ -291,6 +390,11 @@
       enterBtn.textContent = 'Running...';
       showAllBtn.style.display = 'none';
 
+      // Reset summary + trend
+      document.getElementById('summary-bar').style.display = 'none';
+      document.getElementById('trend-panel').style.display = 'none';
+      if (trendChart) { trendChart.destroy(); trendChart = null; }
+
       // Reset bubble map
       if (bubbleRenderer) {
         bubbleAnimating = false;
@@ -314,6 +418,8 @@
           enterBtn.textContent = 'Enter';
           showAllBtn.style.display = 'block';
           fetchTokens();
+          fetchSummary();
+          fetchTrend();
           return;
         }
         output.textContent += e.data + '\n';
@@ -331,6 +437,116 @@
     // ── Bubble chart ─────────────────────────────────────────────────────────
     let bubbleRenderer = null;
     let bubbleAnimating = false;
+
+    let trendChart = null;
+
+    function fetchSummary() {
+      fetch('/summary')
+        .then(r => r.json())
+        .then(s => {
+          const net    = s.usd_in - s.usd_out;
+          const first  = s.first_txn ? s.first_txn.slice(0, 10) : '—';
+          const last   = s.last_txn  ? s.last_txn.slice(0, 10)  : '—';
+          const period = first === last ? first : `${first} → ${last}`;
+
+          document.getElementById('stat-total').textContent  = s.total_txns.toLocaleString();
+          document.getElementById('stat-period').textContent = period;
+          document.getElementById('stat-usd-in').textContent = `$${fmtAmt(s.usd_in)}`;
+          document.getElementById('stat-usd-out').textContent = `$${fmtAmt(s.usd_out)}`;
+          document.getElementById('stat-net').textContent    = `${net >= 0 ? '+' : ''}$${fmtAmt(net)}`;
+          document.getElementById('stat-tokens').textContent = `${s.unique_tokens} unique tokens`;
+          document.getElementById('summary-bar').style.display = 'grid';
+        })
+        .catch(() => {});
+    }
+
+    function fetchTrend() {
+      fetch('/trend')
+        .then(r => r.json())
+        .then(rows => {
+          if (!rows.length) return;
+          const panel = document.getElementById('trend-panel');
+          panel.style.display = 'block';
+
+          const labels  = rows.map(r => r.month);
+          const txnData = rows.map(r => r.txn_count);
+          const inData  = rows.map(r => r.usd_in);
+          const outData = rows.map(r => r.usd_out);
+
+          if (trendChart) { trendChart.destroy(); trendChart = null; }
+
+          const ctx = document.getElementById('trend-canvas').getContext('2d');
+          trendChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: 'Transactions',
+                  data: txnData,
+                  backgroundColor: '#000',
+                  yAxisID: 'yTxn',
+                  order: 2,
+                },
+                {
+                  label: 'USD In',
+                  data: inData,
+                  type: 'line',
+                  borderColor: '#555',
+                  backgroundColor: 'transparent',
+                  pointRadius: 3,
+                  tension: 0.3,
+                  yAxisID: 'yUSD',
+                  order: 1,
+                },
+                {
+                  label: 'USD Out',
+                  data: outData,
+                  type: 'line',
+                  borderColor: '#aaa',
+                  backgroundColor: 'transparent',
+                  pointRadius: 3,
+                  borderDash: [4, 4],
+                  tension: 0.3,
+                  yAxisID: 'yUSD',
+                  order: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  labels: { font: { family: 'inherit', size: 10 }, color: '#000' }
+                },
+              },
+              scales: {
+                yTxn: {
+                  type: 'linear', position: 'left',
+                  ticks: { font: { family: 'inherit', size: 10 }, color: '#000' },
+                  grid: { color: '#f0f0f0' },
+                  title: { display: true, text: 'Transactions', font: { size: 9 }, color: '#aaa' },
+                },
+                yUSD: {
+                  type: 'linear', position: 'right',
+                  ticks: {
+                    font: { family: 'inherit', size: 10 }, color: '#555',
+                    callback: v => `$${fmtAmt(v)}`,
+                  },
+                  grid: { drawOnChartArea: false },
+                  title: { display: true, text: 'USD (stablecoins)', font: { size: 9 }, color: '#aaa' },
+                },
+                x: {
+                  ticks: { font: { family: 'inherit', size: 10 }, color: '#000' },
+                  grid: { display: false },
+                },
+              },
+            },
+          });
+        })
+        .catch(() => {});
+    }
 
     function fetchTokens() {
       fetch('/tokens')
@@ -395,20 +611,30 @@
       const meshTokenMap    = new Map();
 
       tokens.forEach((token, i) => {
-        const angle  = (i / tokens.length) * Math.PI * 2;
-        const size   = minSize + (token.count / maxCount) * (maxSize - minSize);
+        const angle   = (i / tokens.length) * Math.PI * 2;
+        const size    = minSize + (token.count / maxCount) * (maxSize - minSize);
+        const isKnown = token.token in SYMBOL_TO_MINT || STABLECOINS.has(token.token);
 
-        // Fill sphere
+        // Fill sphere — grey for known tokens, light amber tint for unidentified
         const geo  = new THREE.SphereGeometry(size, 32, 32);
-        const mat  = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6, metalness: 0 });
+        const mat  = new THREE.MeshStandardMaterial({
+          color:     isKnown ? 0xf2f2f2 : 0xfff3e0,
+          roughness: isKnown ? 0.6 : 0.8,
+          metalness: 0,
+        });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(Math.cos(angle) * ring, 0, Math.sin(angle) * ring);
         scene.add(mesh);
         clickableMeshes.push(mesh);
         meshTokenMap.set(mesh.uuid, token.token);
 
-        // Wireframe overlay
-        const wfMat  = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true, transparent: true, opacity: 0.12 });
+        // Wireframe overlay — more visible for unknown tokens
+        const wfMat  = new THREE.MeshBasicMaterial({
+          color:       0x000000,
+          wireframe:   true,
+          transparent: true,
+          opacity:     isKnown ? 0.12 : 0.25,
+        });
         const wfMesh = new THREE.Mesh(new THREE.SphereGeometry(size * 1.002, 16, 16), wfMat);
         wfMesh.position.copy(mesh.position);
         scene.add(wfMesh);
