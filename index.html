@@ -379,7 +379,7 @@
       controls.autoRotate     = true;
       controls.autoRotateSpeed = 0.6;
 
-      const maxVol  = Math.max(...tokens.map(t => t.total_amount));
+      const maxVol  = Math.max(...tokens.map(t => t.total_amount)) || 1;
       const minSize = 0.5;
       const maxSize = 2.0;
 
@@ -387,7 +387,7 @@
       const gap  = 0.5;
       const ring = tokens.length > 1
         ? Math.max(10, (maxSize + gap) / Math.sin(Math.PI / tokens.length))
-        : 0;
+        : 10;
 
       camera.position.set(0, ring * 0.35, ring * 1.9);
 
