@@ -208,13 +208,22 @@
     const enterBtn  = document.getElementById('enter');
     const showAllBtn = document.getElementById('show-all');
 
+    let shortContent = '';
+
     showAllBtn.addEventListener('click', () => {
-      showAllBtn.style.display = 'none';
-      showAllBtn.textContent = 'Show All';
-      fetch('/more_transactions')
-        .then(r => r.text())
-        .then(text => { output.textContent += text; })
-        .catch(() => { output.textContent += '\nFailed to load remaining transactions.'; });
+      if (showAllBtn.textContent === 'Show All') {
+        shortContent = output.textContent;
+        fetch('/more_transactions')
+          .then(r => r.text())
+          .then(text => {
+            output.textContent += text;
+            showAllBtn.textContent = 'Show Less';
+          })
+          .catch(() => { output.textContent += '\nFailed to load remaining transactions.'; });
+      } else {
+        output.textContent = shortContent;
+        showAllBtn.textContent = 'Show All';
+      }
     });
 
     // ── Input behaviour ──────────────────────────────────────────────────────
