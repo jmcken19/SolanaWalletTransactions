@@ -245,8 +245,7 @@
     let bubbleAnimating = false;
 
     function fetchTokens() {
-      const addr = input.value.trim();
-      fetch(`/tokens?wallet=${encodeURIComponent(addr)}`)
+      fetch('/tokens')
         .then(r => r.json())
         .then(tokens => {
           if (tokens.length) renderBubbles(tokens);
