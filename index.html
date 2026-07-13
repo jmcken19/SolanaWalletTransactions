@@ -165,10 +165,12 @@
   </div>
 
   <script>
-    const DEFAULT = 'FuUKYBncpU3BSJ43hgKigKhzYrigWUEja3n69gzNTxeP';
-    const input   = document.getElementById('wallet');
-    const output  = document.getElementById('output');
+    const DEFAULT   = 'FuUKYBncpU3BSJ43hgKigKhzYrigWUEja3n69gzNTxeP';
+    const input     = document.getElementById('wallet');
+    const output    = document.getElementById('output');
+    const enterBtn  = document.getElementById('enter');
 
+    // ── Input behaviour ──────────────────────────────────────────────────────
     input.addEventListener('focus', () => {
       if (input.value === DEFAULT) input.select();
     });
@@ -184,10 +186,48 @@
       }
     });
 
-    document.getElementById('enter').addEventListener('click', () => {
-      const addr = input.value.trim();
-      if (addr) console.log('Wallet:', addr);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') run();
     });
+
+    enterBtn.addEventListener('click', run);
+
+    // ── SSE streaming ────────────────────────────────────────────────────────
+    let activeSource = null;
+
+    function run() {
+      const addr = input.value.trim();
+      if (!addr) return;
+
+      if (activeSource) { activeSource.close(); activeSource = null; }
+
+      output.textContent = '';
+      enterBtn.disabled  = true;
+      enterBtn.textContent = 'Running...';
+
+      const es = new EventSource(`/run?wallet=${encodeURIComponent(addr)}`);
+      activeSource = es;
+
+      es.onmessage = e => {
+        if (e.data === '[DONE]') {
+          es.close();
+          activeSource       = null;
+          enterBtn.disabled  = false;
+          enterBtn.textContent = 'Enter';
+          return;
+        }
+        output.textContent += e.data + '\n';
+        output.scrollTop    = output.scrollHeight;
+      };
+
+      es.onerror = () => {
+        es.close();
+        activeSource         = null;
+        enterBtn.disabled    = false;
+        enterBtn.textContent = 'Enter';
+        output.textContent  += '\nConnection lost.';
+      };
+    }
   </script>
 </body>
 </html>
