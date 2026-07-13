@@ -516,51 +516,51 @@
           const transferPct   = totalTxns > 0 ? transferCount / totalTxns : 0;
           const sameDay       = first === last;
 
-          // Build plain-English narrative (3 sentences max)
+          // Build plain-English narrative
           const sentences = [];
 
-          // Sentence 1 — what is this token?
+          // What is this token?
           if (isUSD) {
-            sentences.push(`${d.token} is a digital US dollar — every single unit is worth exactly $1, so you can treat these numbers directly as dollar amounts.`);
+            sentences.push(`${d.token} is a digital dollar — each unit = $1.`);
           } else if (price) {
-            sentences.push(`${d.token} is a cryptocurrency currently worth about $${fmtAmt(price)} per token, so the amounts below can be multiplied by that to get a rough dollar value.`);
+            sentences.push(`${d.token} is a cryptocurrency worth ~$${fmtAmt(price)} per token.`);
           } else {
-            sentences.push(`${d.token} is an unidentified token — it doesn't match any well-known cryptocurrency, and is likely a meme coin or niche token whose dollar value we can't determine.`);
+            sentences.push(`${d.token} is an unidentified token — likely a meme coin with no trackable price.`);
           }
 
-          // Sentence 2 — what did the wallet do?
+          // What did the wallet do?
           if (d.count_in === 0) {
             if (swapPct > 0.8) {
-              sentences.push(`This wallet traded all of its ${d.token} away — swapping it for other cryptocurrencies across ${d.count_out} transactions, without ever receiving any back.`);
+              sentences.push(`The wallet traded away all of its ${d.token} across ${d.count_out} swaps — never receiving any back.`);
             } else {
-              sentences.push(`This wallet only sent ${d.token} out across ${d.count_out} transactions — it never received any in return.`);
+              sentences.push(`The wallet only sent ${d.token} out (${d.count_out} transactions) — never received any.`);
             }
           } else if (d.count_out === 0) {
             if (swapPct > 0.8) {
-              sentences.push(`This wallet only received ${d.token} through trades — it acquired it by swapping other cryptocurrencies, and never sold or sent any out.`);
+              sentences.push(`The wallet only acquired ${d.token} by trading into it (${d.count_in} swaps) — never sold any.`);
             } else {
-              sentences.push(`This wallet only received ${d.token} across ${d.count_in} transactions — it never sent any out.`);
+              sentences.push(`The wallet only received ${d.token} (${d.count_in} transactions) — never sent any out.`);
             }
           } else {
-            const netUSDStr = price ? ` (roughly $${fmtAmt(Math.abs(net) * price)})` : '';
+            const netUSDStr = price ? ` (~$${fmtAmt(Math.abs(net) * price)})` : '';
             if (net > 0) {
-              sentences.push(`Overall this wallet ended up with ${fmtAmt(net)} more ${d.token} than it sent out${netUSDStr} — it was a net receiver across ${totalTxns} transactions.`);
+              sentences.push(`Net receiver — ended up with ${fmtAmt(net)} more ${d.token}${netUSDStr} than it sent across ${totalTxns} transactions.`);
             } else {
-              sentences.push(`Overall this wallet sent out ${fmtAmt(Math.abs(net))} more ${d.token} than it received${netUSDStr} — it was a net spender across ${totalTxns} transactions.`);
+              sentences.push(`Net spender — sent ${fmtAmt(Math.abs(net))} more ${d.token}${netUSDStr} than it received across ${totalTxns} transactions.`);
             }
           }
 
-          // Sentence 3 — interpretation / context
+          // Context
           if (sameDay && totalTxns >= 10 && swapPct > 0.8 && d.count_in === 0) {
-            sentences.push(`All ${totalTxns} of these sell trades happened on a single day (${first}), which is a strong sign of a deliberate exit — the owner likely decided to cash out their entire position at once.`);
+            sentences.push(`${totalTxns} sell trades in one day (${first}) — likely a deliberate exit, cashing out the entire position at once.`);
           } else if (sameDay && totalTxns >= 5) {
-            sentences.push(`All activity was concentrated on one day (${first}), suggesting a single one-time event rather than regular ongoing use.`);
+            sentences.push(`All activity on one day (${first}) — a one-time event, not regular use.`);
           } else if (!sameDay && swapPct > 0.8) {
-            sentences.push(`Because all activity was swaps (trades), this token was never used as a payment — it was purely a trading asset being bought and sold on exchanges.`);
+            sentences.push(`All swaps — purely a trading asset, never used as a payment.`);
           } else if (!sameDay && transferPct > 0.7) {
-            sentences.push(`The majority of activity was direct wallet-to-wallet transfers — more like sending money between accounts than speculative trading.`);
+            sentences.push(`Mostly wallet-to-wallet transfers — used more like payments than trading.`);
           } else if (!sameDay) {
-            sentences.push(`Activity was spread across multiple days, suggesting this token was part of the wallet's regular trading or spending habits.`);
+            sentences.push(`Activity spread over multiple days — part of the wallet's regular habits.`);
           }
 
           const narrative = sentences.join(' ');
@@ -636,10 +636,13 @@
       c.height  = 80;
       const ctx = c.getContext('2d');
 
+      // Shorten long addresses (full mints are 44 chars) for display
+      const displayName = name.length > 12 ? name.slice(0, 6) + '…' + name.slice(-4) : name;
+
       ctx.font      = 'bold 30px sans-serif';
       ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
-      ctx.fillText(name, 128, 34);
+      ctx.fillText(displayName, 128, 34);
 
       ctx.font      = '20px sans-serif';
       ctx.fillStyle = '#777777';

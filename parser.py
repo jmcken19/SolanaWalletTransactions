@@ -28,7 +28,7 @@ KNOWN_TOKENS = {
 }
 
 def _resolve_mint(mint: str) -> str:
-    return KNOWN_TOKENS.get(mint, mint[:6] + "...")
+    return KNOWN_TOKENS.get(mint, mint)
 
 # this function takes the raw data and parses it into a list of dictionaries 
 def parse_transactions(raw: list[dict]) -> list[dict]:
