@@ -2,6 +2,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import subprocess
 import sys
+import io
 import os
 import json
 
@@ -19,6 +20,8 @@ class Handler(BaseHTTPRequestHandler):
             self._stream_run(wallet)
         elif parsed.path == "/tokens":
             self._get_tokens()
+        elif parsed.path == "/more_transactions":
+            self._get_more_transactions()
         else:
             self.send_error(404)
 
@@ -113,6 +116,34 @@ class Handler(BaseHTTPRequestHandler):
             err = json.dumps({"error": str(e)}).encode()
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
+
+    def _get_more_transactions(self):
+        try:
+            from db import get_connection
+            import queries
+
+            conn = get_connection()
+            old_stdout = sys.stdout
+            sys.stdout = buf = io.StringIO()
+            queries.remaining_transactions(conn)
+            sys.stdout = old_stdout
+            conn.close()
+
+            text = buf.getvalue().encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(text)))
+            self.end_headers()
+            self.wfile.write(text)
+
+        except Exception as e:
+            sys.stdout = old_stdout if 'old_stdout' in dir() else sys.stdout
+            err = str(e).encode()
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", str(len(err)))
             self.end_headers()
             self.wfile.write(err)

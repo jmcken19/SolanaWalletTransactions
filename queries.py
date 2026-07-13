@@ -19,7 +19,7 @@ def summary_by_type(conn) -> None:
     pretty_table(rows, title="Transactions by type")
 
 
-def recent_transactions(conn, n: int = 500) -> None:
+def recent_transactions(conn, n: int = 10) -> None:
     with _cursor(conn) as cur:
         cur.execute("""
             SELECT SUBSTRING(signature, 1, 8) || '...' AS signature,
@@ -33,6 +33,22 @@ def recent_transactions(conn, n: int = 500) -> None:
         """, (n,))
         rows = cur.fetchall()
     pretty_table(rows, title="Recent Transactions")
+
+
+def remaining_transactions(conn) -> None:
+    with _cursor(conn) as cur:
+        cur.execute("""
+            SELECT SUBSTRING(signature, 1, 8) || '...' AS signature,
+                   TO_TIMESTAMP(block_time)::TEXT        AS time,
+                   type, token_in, amount_in,
+                   token_out, amount_out,
+                   ROUND(fee / 1000000000.0, 6)         AS fee_sol
+            FROM transactions
+            ORDER BY block_time DESC
+            LIMIT 490 OFFSET 10
+        """)
+        rows = cur.fetchall()
+    pretty_table(rows, title="")
 
 
 def failed_transactions(conn) -> None:

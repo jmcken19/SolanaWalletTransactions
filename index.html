@@ -117,6 +117,23 @@
 
     #output .muted { color: #aaa; }
 
+    #show-all {
+      display: none;
+      margin-top: 12px;
+      padding: 6px 0;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #000;
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      color: #000;
+    }
+    #show-all:hover { background: #f5f5f5; }
+
     /* ── Bubble map ─────────────────────────────────────────────────────────── */
     #bubble-wrap {
       flex: 1;
@@ -166,6 +183,7 @@
     <div id="terminal">
       <span id="terminal-title">Terminal</span>
       <pre id="output"><span class="muted">Waiting for input...</span></pre>
+      <button id="show-all">Show All</button>
     </div>
 
     <div id="bubble-wrap">
@@ -180,6 +198,16 @@
     const input     = document.getElementById('wallet');
     const output    = document.getElementById('output');
     const enterBtn  = document.getElementById('enter');
+    const showAllBtn = document.getElementById('show-all');
+
+    showAllBtn.addEventListener('click', () => {
+      showAllBtn.style.display = 'none';
+      showAllBtn.textContent = 'Show All';
+      fetch('/more_transactions')
+        .then(r => r.text())
+        .then(text => { output.textContent += text; })
+        .catch(() => { output.textContent += '\nFailed to load remaining transactions.'; });
+    });
 
     // ── Input behaviour ──────────────────────────────────────────────────────
     input.addEventListener('focus', () => {
@@ -215,6 +243,7 @@
       output.textContent = '';
       enterBtn.disabled  = true;
       enterBtn.textContent = 'Running...';
+      showAllBtn.style.display = 'none';
 
       // Reset bubble map
       if (bubbleRenderer) {
@@ -237,6 +266,7 @@
           activeSource       = null;
           enterBtn.disabled  = false;
           enterBtn.textContent = 'Enter';
+          showAllBtn.style.display = 'block';
           fetchTokens();
           return;
         }
