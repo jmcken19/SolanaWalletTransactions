@@ -18,12 +18,14 @@
       align-items: center;
       padding-top: 80px;
       padding-bottom: 200px;
+      padding-left: 16px;
+      padding-right: 16px;
     }
 
     #card {
       border: 1.5px solid #000;
       padding: 28px 32px 32px;
-      width: 760px;
+      width: min(760px, 100%);
       flex-shrink: 0;
     }
 
@@ -83,9 +85,15 @@
     #panels {
       display: flex;
       gap: 16px;
-      width: 1200px;
+      width: min(1200px, 100%);
       margin-top: 16px;
       align-items: stretch;
+    }
+
+    @media (max-width: 768px) {
+      html, body { padding-top: 32px; }
+      #panels { flex-direction: column; }
+      #bubble-canvas { height: 360px; }
     }
 
     /* ── Terminal ───────────────────────────────────────────────────────────── */
