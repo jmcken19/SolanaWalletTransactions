@@ -83,7 +83,7 @@ def pretty_table(rows, title: str = "") -> None:
             return ""
         try:
             f = float(val)
-            return f"{f:.6f}"
+            return str(int(f)) if f == int(f) else f"{f:.6f}"
         except (TypeError, ValueError):
             return str(val)
 

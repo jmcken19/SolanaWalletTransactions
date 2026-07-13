@@ -450,23 +450,62 @@
       });
     }
 
+    function fmtAmt(val) {
+      const abs  = Math.abs(val);
+      const sign = val < 0 ? '-' : '';
+      if (abs >= 1e9) return sign + (abs / 1e9).toFixed(2) + 'B';
+      if (abs >= 1e6) return sign + (abs / 1e6).toFixed(2) + 'M';
+      return sign + abs.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
     function fetchTokenDetail(tokenName) {
       fetch(`/token_detail?token=${encodeURIComponent(tokenName)}`)
         .then(r => r.json())
         .then(d => {
-          const net    = d.total_in - d.total_out;
-          const netStr = (net >= 0 ? '+' : '') + net.toFixed(2);
-          const types  = d.types.map(t => `${t.type} (${t.count})`).join(' · ');
+          const net       = d.total_in - d.total_out;
+          const totalVol  = d.total_in + d.total_out;
+          const totalTxns = d.count_in + d.count_out;
+          const first     = d.first_seen.slice(0, 10);
+          const last      = d.last_seen.slice(0, 10);
+          const dateRange = first === last ? first : `${first} → ${last}`;
 
-          document.getElementById('token-detail-name').textContent = d.token;
-          document.getElementById('token-detail-grid').innerHTML = `
-            <span class="label">Received</span><span class="value">${d.count_in} txns · ${d.total_in.toFixed(2)}</span>
-            <span class="label">Sent</span><span class="value">${d.count_out} txns · ${d.total_out.toFixed(2)}</span>
-            <span class="label">Net</span><span class="value">${netStr}</span>
-            <span class="label">First seen</span><span class="value">${d.first_seen.slice(0, 10)}</span>
-            <span class="label">Last seen</span><span class="value">${d.last_seen.slice(0, 10)}</span>
-            <span class="label">By type</span><span class="value">${types}</span>
-          `;
+          // Plain-English direction + one-line summary
+          let direction, summary;
+          if (d.count_in === 0 && d.count_out > 0) {
+            direction = 'Spending Only';
+            summary   = `This wallet only sent ${d.token} — ${fmtAmt(d.total_out)} across ${d.count_out} transactions.`;
+          } else if (d.count_in > 0 && d.count_out === 0) {
+            direction = 'Receiving Only';
+            summary   = `This wallet only received ${d.token} — ${fmtAmt(d.total_in)} across ${d.count_in} transactions.`;
+          } else if (net > 0) {
+            direction = 'Net Accumulator';
+            summary   = `This wallet received ${fmtAmt(net)} more ${d.token} than it sent across ${totalTxns} transactions.`;
+          } else if (net < 0) {
+            direction = 'Net Spender';
+            summary   = `This wallet sent ${fmtAmt(Math.abs(net))} more ${d.token} than it received across ${totalTxns} transactions.`;
+          } else {
+            direction = 'Balanced';
+            summary   = `This wallet moved ${fmtAmt(totalVol)} in ${d.token} and broke even across ${totalTxns} transactions.`;
+          }
+
+          // Activity breakdown with percentages
+          const types = d.types.map(t => {
+            const pct = totalTxns > 0 ? Math.round((t.count / totalTxns) * 100) : 0;
+            return `${t.type} ${pct}%`;
+          }).join(' · ');
+
+          let rows = '';
+          rows += `<span style="grid-column:1/-1;font-family:inherit;font-size:11px;color:#555;padding-bottom:6px;line-height:1.5">${summary}</span>`;
+          rows += `<span style="grid-column:1/-1;border-top:1px solid #e8e8e8;margin-bottom:4px"></span>`;
+          if (d.count_in  > 0) rows += `<span class="label">Money in</span><span class="value">${fmtAmt(d.total_in)} <span style="color:#aaa">(${d.count_in} txns)</span></span>`;
+          if (d.count_out > 0) rows += `<span class="label">Money out</span><span class="value">${fmtAmt(d.total_out)} <span style="color:#aaa">(${d.count_out} txns)</span></span>`;
+          rows += `<span class="label">Net position</span><span class="value" style="font-weight:600">${net >= 0 ? '+' : ''}${fmtAmt(net)}</span>`;
+          rows += `<span class="label">Active</span><span class="value">${dateRange}</span>`;
+          rows += `<span class="label">Activity</span><span class="value">${types}</span>`;
+
+          document.getElementById('token-detail-name').innerHTML =
+            `${d.token} <span style="font-size:10px;font-weight:400;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-left:8px">${direction}</span>`;
+          document.getElementById('token-detail-grid').innerHTML = rows;
           document.getElementById('token-detail').style.display = 'block';
         })
         .catch(() => {});
