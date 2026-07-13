@@ -506,6 +506,10 @@
           rows += `<span class="label">Net position</span><span class="value" style="font-weight:600">${net >= 0 ? `+${sym}` : `-${sym}`}${fmtAmt(Math.abs(net))}</span>`;
           rows += `<span class="label">Active</span><span class="value">${dateRange}</span>`;
           rows += `<span class="label">Activity</span><span class="value">${types}</span>`;
+          rows += `<span class="label">Token</span><span class="value" style="display:flex;align-items:center;gap:8px">
+            <span id="token-addr-text" style="word-break:break-all">${d.token}</span>
+            <button onclick="copyTokenAddr()" style="flex-shrink:0;background:transparent;border:1px solid #000;font-family:inherit;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;cursor:pointer">Copy</button>
+          </span>`;
 
           document.getElementById('token-detail-name').innerHTML =
             `${d.token} <span style="font-size:10px;font-weight:400;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-left:8px">${direction}</span>`;
@@ -513,6 +517,15 @@
           document.getElementById('token-detail').style.display = 'block';
         })
         .catch(() => {});
+    }
+
+    function copyTokenAddr() {
+      const text = document.getElementById('token-addr-text').textContent.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+      });
     }
 
     function makeLabel(name, count) {
