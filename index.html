@@ -79,12 +79,20 @@
     #enter:hover  { background: #333; }
     #enter:active { background: #000; }
 
-    /* ── Terminal ───────────────────────────────────────────────────────────── */
-    #terminal {
+    /* ── Side-by-side panel row ─────────────────────────────────────────────── */
+    #panels {
+      display: flex;
+      gap: 16px;
       width: 760px;
       margin-top: 16px;
+      align-items: stretch;
+    }
+
+    /* ── Terminal ───────────────────────────────────────────────────────────── */
+    #terminal {
+      flex: 1;
+      min-width: 0;
       border: 1.5px solid #000;
-      flex-shrink: 0;
       padding: 20px 24px;
     }
 
@@ -103,7 +111,7 @@
       color: #000;
       white-space: pre;
       overflow-x: auto;
-      max-height: 900px;
+      max-height: 540px;
       overflow-y: auto;
     }
 
@@ -111,10 +119,9 @@
 
     /* ── Bubble map ─────────────────────────────────────────────────────────── */
     #bubble-wrap {
-      width: 760px;
-      margin-top: 16px;
+      flex: 1;
+      min-width: 0;
       border: 1.5px solid #000;
-      flex-shrink: 0;
     }
 
     #bubble-label {
@@ -155,15 +162,17 @@
     <button id="enter">Enter</button>
   </div>
 
-  <div id="terminal">
-    <span id="terminal-title">Terminal</span>
-    <pre id="output"><span class="muted">Waiting for input...</span></pre>
-  </div>
+  <div id="panels">
+    <div id="terminal">
+      <span id="terminal-title">Terminal</span>
+      <pre id="output"><span class="muted">Waiting for input...</span></pre>
+    </div>
 
-  <div id="bubble-wrap">
-    <span id="bubble-label">Bubble Map</span>
-    <div id="bubble-placeholder">Waiting for input...</div>
-    <canvas id="bubble-canvas"></canvas>
+    <div id="bubble-wrap">
+      <span id="bubble-label">Bubble Map</span>
+      <div id="bubble-placeholder">Waiting for input...</div>
+      <canvas id="bubble-canvas"></canvas>
+    </div>
   </div>
 
   <script>
