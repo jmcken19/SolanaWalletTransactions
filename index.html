@@ -332,8 +332,7 @@
       const scene    = new THREE.Scene();
       scene.background = new THREE.Color(0xffffff);
 
-      const camera   = new THREE.PerspectiveCamera(60, W / H, 0.1, 200);
-      camera.position.set(0, 6, 28);
+      const camera   = new THREE.PerspectiveCamera(60, W / H, 0.1, 500);
 
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
       renderer.setSize(W, H);
@@ -352,11 +351,20 @@
       controls.autoRotateSpeed = 0.6;
 
       const maxCount = Math.max(...tokens.map(t => t.count));
+      const minSize  = 0.5;
+      const maxSize  = 2.0;
+
+      // Ring radius large enough that adjacent bubbles never touch
+      const gap  = 0.5;
+      const ring = tokens.length > 1
+        ? Math.max(10, (maxSize + gap) / Math.sin(Math.PI / tokens.length))
+        : 0;
+
+      camera.position.set(0, ring * 0.35, ring * 1.9);
 
       tokens.forEach((token, i) => {
         const angle  = (i / tokens.length) * Math.PI * 2;
-        const ring   = 11;
-        const size   = 0.7 + (token.count / maxCount) * 2.8;
+        const size   = minSize + (token.count / maxCount) * (maxSize - minSize);
 
         // Fill sphere
         const geo  = new THREE.SphereGeometry(size, 32, 32);
