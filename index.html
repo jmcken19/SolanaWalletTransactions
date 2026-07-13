@@ -350,9 +350,9 @@
       controls.autoRotate     = true;
       controls.autoRotateSpeed = 0.6;
 
-      const maxMag  = Math.max(...tokens.map(t => Math.abs(t.net_flow)));
-      const minSize = 0.5;
-      const maxSize = 2.0;
+      const maxCount = Math.max(...tokens.map(t => t.count));
+      const minSize  = 0.5;
+      const maxSize  = 2.0;
 
       // Ring radius large enough that adjacent bubbles never touch
       const gap  = 0.5;
@@ -363,15 +363,12 @@
       camera.position.set(0, ring * 0.35, ring * 1.9);
 
       tokens.forEach((token, i) => {
-        const angle    = (i / tokens.length) * Math.PI * 2;
-        const mag      = Math.abs(token.net_flow);
-        const size     = minSize + (mag / maxMag) * (maxSize - minSize);
-        // Light fill for net sellers, darker for net accumulators
-        const color    = token.net_flow >= 0 ? 0xd8d8d8 : 0xf5f5f5;
+        const angle  = (i / tokens.length) * Math.PI * 2;
+        const size   = minSize + (token.count / maxCount) * (maxSize - minSize);
 
         // Fill sphere
         const geo  = new THREE.SphereGeometry(size, 32, 32);
-        const mat  = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0 });
+        const mat  = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.6, metalness: 0 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(Math.cos(angle) * ring, 0, Math.sin(angle) * ring);
         scene.add(mesh);
@@ -383,7 +380,7 @@
         scene.add(wfMesh);
 
         // Label sprite
-        const label = makeLabel(token.token, token.net_flow);
+        const label = makeLabel(token.token, token.count);
         label.position.set(mesh.position.x, mesh.position.y + size + 0.6, mesh.position.z);
         scene.add(label);
       });
@@ -404,15 +401,7 @@
       });
     }
 
-    function fmtFlow(val) {
-      const abs = Math.abs(val);
-      const sign = val >= 0 ? '+' : '-';
-      if (abs >= 1e6)  return sign + (abs / 1e6).toFixed(1) + 'M';
-      if (abs >= 1000) return sign + (abs / 1000).toFixed(1) + 'k';
-      return sign + abs.toFixed(2);
-    }
-
-    function makeLabel(name, net_flow) {
+    function makeLabel(name, count) {
       const c   = document.createElement('canvas');
       c.width   = 256;
       c.height  = 80;
@@ -424,8 +413,8 @@
       ctx.fillText(name, 128, 34);
 
       ctx.font      = '20px sans-serif';
-      ctx.fillStyle = net_flow >= 0 ? '#444444' : '#999999';
-      ctx.fillText(fmtFlow(net_flow), 128, 60);
+      ctx.fillStyle = '#777777';
+      ctx.fillText(`${count} txns`, 128, 60);
 
       const tex    = new THREE.CanvasTexture(c);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
