@@ -3,6 +3,7 @@ from urllib.parse import urlparse, parse_qs
 import subprocess
 import sys
 import os
+import json
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -16,6 +17,8 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             wallet = params.get("wallet", [""])[0].strip()
             self._stream_run(wallet)
+        elif parsed.path == "/tokens":
+            self._get_tokens()
         else:
             self.send_error(404)
 
@@ -66,6 +69,53 @@ class Handler(BaseHTTPRequestHandler):
             proc.terminate()
         finally:
             self._send_event("[DONE]")
+
+    def _get_tokens(self):
+        try:
+            from db import get_connection
+            import psycopg2.extras
+
+            conn = get_connection()
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT token, COUNT(*) AS count, SUM(amount) AS total_amount
+                    FROM (
+                        SELECT token_in  AS token, amount_in  AS amount
+                        FROM transactions
+                        WHERE token_in  IS NOT NULL AND token_in  <> ''
+                        UNION ALL
+                        SELECT token_out AS token, amount_out AS amount
+                        FROM transactions
+                        WHERE token_out IS NOT NULL AND token_out <> ''
+                    ) t
+                    GROUP BY token
+                    ORDER BY count DESC
+                    LIMIT 20
+                """)
+                rows = [
+                    {
+                        "token":        r["token"],
+                        "count":        int(r["count"]),
+                        "total_amount": float(r["total_amount"] or 0),
+                    }
+                    for r in cur.fetchall()
+                ]
+            conn.close()
+
+            data = json.dumps(rows).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        except Exception as e:
+            err = json.dumps({"error": str(e)}).encode()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
 
     def _send_event(self, text):
         try:
