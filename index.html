@@ -292,12 +292,12 @@
       controls.autoRotate     = true;
       controls.autoRotateSpeed = 0.6;
 
-      const maxVolume = Math.max(...tokens.map(t => t.total_amount));
+      const maxCount = Math.max(...tokens.map(t => t.count));
 
       tokens.forEach((token, i) => {
         const angle  = (i / tokens.length) * Math.PI * 2;
         const ring   = 11;
-        const size   = 0.7 + (token.total_amount / maxVolume) * 2.8;
+        const size   = 0.7 + (token.count / maxCount) * 2.8;
 
         // Fill sphere
         const geo  = new THREE.SphereGeometry(size, 32, 32);
@@ -313,7 +313,7 @@
         scene.add(wfMesh);
 
         // Label sprite
-        const label = makeLabel(token.token, token.total_amount);
+        const label = makeLabel(token.token, token.count);
         label.position.set(mesh.position.x, mesh.position.y + size + 0.6, mesh.position.z);
         scene.add(label);
       });
@@ -334,7 +334,7 @@
       });
     }
 
-    function makeLabel(name, volume) {
+    function makeLabel(name, count) {
       const c   = document.createElement('canvas');
       c.width   = 256;
       c.height  = 80;
@@ -345,12 +345,9 @@
       ctx.textAlign = 'center';
       ctx.fillText(name, 128, 34);
 
-      const vol = volume >= 1000
-        ? (volume / 1000).toFixed(1) + 'k'
-        : volume.toFixed(2);
       ctx.font      = '20px sans-serif';
       ctx.fillStyle = '#777777';
-      ctx.fillText(`Vol: ${vol}`, 128, 60);
+      ctx.fillText(`${count} txns`, 128, 60);
 
       const tex    = new THREE.CanvasTexture(c);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
