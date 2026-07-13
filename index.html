@@ -682,7 +682,10 @@
       const sign = val < 0 ? '-' : '';
       if (abs >= 1e9) return sign + (abs / 1e9).toFixed(2) + 'B';
       if (abs >= 1e6) return sign + (abs / 1e6).toFixed(2) + 'M';
-      return sign + abs.toLocaleString('en-US', { maximumFractionDigits: 2 });
+      if (abs >= 1)   return sign + abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (abs === 0)  return '0';
+      // Small amounts: show enough precision to be non-zero (up to 8 decimal places)
+      return sign + abs.toLocaleString('en-US', { minimumSignificantDigits: 2, maximumSignificantDigits: 4 });
     }
 
     const STABLECOINS = new Set(['USDC', 'USDT', 'USDH']);
@@ -807,8 +810,8 @@
           let rows = '';
           rows += `<span style="grid-column:1/-1;font-family:inherit;font-size:11px;color:#555;padding-bottom:8px;line-height:1.7">${narrative}</span>`;
           rows += `<span style="grid-column:1/-1;border-top:1px solid #e8e8e8;margin-bottom:4px"></span>`;
-          if (d.count_in  > 0) rows += `<span class="label">Money in</span><span class="value">${fmtWithUSD(d.total_in)} <span style="color:#aaa">(${d.count_in} txns)</span></span>`;
-          if (d.count_out > 0) rows += `<span class="label">Money out</span><span class="value">${fmtWithUSD(d.total_out)} <span style="color:#aaa">(${d.count_out} txns)</span></span>`;
+          if (d.count_in  > 0) rows += `<span class="label">Received into wallet</span><span class="value">${fmtWithUSD(d.total_in)} <span style="color:#aaa">(${d.count_in} swaps)</span></span>`;
+          if (d.count_out > 0) rows += `<span class="label">Sent from wallet</span><span class="value">${fmtWithUSD(d.total_out)} <span style="color:#aaa">(${d.count_out} swaps)</span></span>`;
           rows += `<span class="label">Net position</span><span class="value" style="font-weight:600">${netBase}${netUSD}</span>`;
           rows += `<span class="label">Active</span><span class="value">${dateRange}</span>`;
           rows += `<span class="label">Activity</span><span class="value">${types}</span>`;
@@ -873,7 +876,7 @@
 
       ctx.font      = '20px sans-serif';
       ctx.fillStyle = '#777777';
-      ctx.fillText(`${count} txns`, 128, 60);
+      ctx.fillText(`${count} swaps`, 128, 60);
 
       const tex    = new THREE.CanvasTexture(c);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
