@@ -1,5 +1,6 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import urllib.request
 import subprocess
 import sys
 import io
@@ -26,6 +27,8 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             token = params.get("token", [""])[0].strip()
             self._get_token_detail(token)
+        elif parsed.path == "/prices":
+            self._get_prices()
         else:
             self.send_error(404)
 
@@ -212,6 +215,52 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(err)))
             self.end_headers()
             self.wfile.write(err)
+
+    def _get_prices(self):
+        # Mint addresses for tokens we recognise, keyed by symbol stored in DB
+        MINT_TO_SYMBOL = {
+            "So11111111111111111111111111111111111111112": "wSOL",
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
+            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
+            "USDH1Hdt8P7qTQKDSpeZDnDRKqTucBM5ciqMP2kYtAf": "USDH",
+            "DezXAZ8z7PnrnRJjz3Fh4Cz9WcbQTUk2e37hTd5C59w": "BONK",
+            "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": "JUP",
+            "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": "JitoSOL",
+            "mSoLzYCxNqgBJwTfMxKWR7fmDjnZ7HepfsSwnYwbsR": "mSOL",
+            "bSo13r4TkiE4G6HUPZepS9z6E6T8Jq3EqW3eJ5W2RCP": "bSOL",
+            "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R": "RAY",
+            "orcaEKTdK7LKz57vaAYfXqXbUQmNEw4RkY7qR9VYkq":  "ORCA",
+            "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": "WIF",
+            "HhJpBhZc3L4QxrzBFW91tYYQJgWPs2F7GQZpkz7g5Xtg": "MYRO",
+            "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgTL": "SAMO",
+        }
+        try:
+            mints = ",".join(MINT_TO_SYMBOL.keys())
+            url = f"https://api.jup.ag/price/v2?ids={mints}"
+            req = urllib.request.Request(url, headers={"User-Agent": "SolanaTracker/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                raw = json.loads(resp.read())
+
+            prices = {}
+            for mint, info in raw.get("data", {}).items():
+                symbol = MINT_TO_SYMBOL.get(mint)
+                if symbol and info and info.get("price"):
+                    prices[symbol] = float(info["price"])
+
+            data = json.dumps(prices).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception:
+            # Return empty object on failure — frontend handles gracefully
+            empty = json.dumps({}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(empty)))
+            self.end_headers()
+            self.wfile.write(empty)
 
     def _send_event(self, text):
         try:
