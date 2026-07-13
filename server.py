@@ -81,25 +81,29 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_connection()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
-                    SELECT token, COUNT(*) AS count, SUM(amount) AS total_amount
+                    SELECT token,
+                           SUM(CASE WHEN direction = 'in'  THEN amount ELSE 0 END) -
+                           SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) AS net_flow
                     FROM (
-                        SELECT token_in  AS token, amount_in  AS amount
+                        SELECT token_in  AS token, amount_in  AS amount, 'in'  AS direction
                         FROM transactions
                         WHERE token_in  IS NOT NULL AND token_in  <> ''
                         UNION ALL
-                        SELECT token_out AS token, amount_out AS amount
+                        SELECT token_out AS token, amount_out AS amount, 'out' AS direction
                         FROM transactions
                         WHERE token_out IS NOT NULL AND token_out <> ''
                     ) t
                     GROUP BY token
-                    ORDER BY count DESC
+                    ORDER BY ABS(
+                        SUM(CASE WHEN direction = 'in'  THEN amount ELSE 0 END) -
+                        SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END)
+                    ) DESC
                     LIMIT 20
                 """)
                 rows = [
                     {
-                        "token":        r["token"],
-                        "count":        int(r["count"]),
-                        "total_amount": float(r["total_amount"] or 0),
+                        "token":    r["token"],
+                        "net_flow": float(r["net_flow"] or 0),
                     }
                     for r in cur.fetchall()
                 ]
