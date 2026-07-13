@@ -379,9 +379,9 @@
       controls.autoRotate     = true;
       controls.autoRotateSpeed = 0.6;
 
-      const maxCount = Math.max(...tokens.map(t => t.count));
-      const minSize  = 0.5;
-      const maxSize  = 2.0;
+      const maxVol  = Math.max(...tokens.map(t => t.total_amount));
+      const minSize = 0.5;
+      const maxSize = 2.0;
 
       // Ring radius large enough that adjacent bubbles never touch
       const gap  = 0.5;
@@ -396,7 +396,7 @@
 
       tokens.forEach((token, i) => {
         const angle  = (i / tokens.length) * Math.PI * 2;
-        const size   = minSize + (token.count / maxCount) * (maxSize - minSize);
+        const size   = minSize + (token.total_amount / maxVol) * (maxSize - minSize);
 
         // Fill sphere
         const geo  = new THREE.SphereGeometry(size, 32, 32);
@@ -414,7 +414,7 @@
         scene.add(wfMesh);
 
         // Label sprite
-        const label = makeLabel(token.token, token.count);
+        const label = makeLabel(token.token, token.total_amount);
         label.position.set(mesh.position.x, mesh.position.y + size + 0.6, mesh.position.z);
         scene.add(label);
       });
@@ -473,19 +473,19 @@
           let direction, summary;
           if (d.count_in === 0 && d.count_out > 0) {
             direction = 'Spending Only';
-            summary   = `This wallet only sent ${d.token} — ${fmtAmt(d.total_out)} across ${d.count_out} transactions.`;
+            summary   = `This wallet only sent ${d.token} — $${fmtAmt(d.total_out)} across ${d.count_out} transactions.`;
           } else if (d.count_in > 0 && d.count_out === 0) {
             direction = 'Receiving Only';
-            summary   = `This wallet only received ${d.token} — ${fmtAmt(d.total_in)} across ${d.count_in} transactions.`;
+            summary   = `This wallet only received ${d.token} — $${fmtAmt(d.total_in)} across ${d.count_in} transactions.`;
           } else if (net > 0) {
             direction = 'Net Accumulator';
-            summary   = `This wallet received ${fmtAmt(net)} more ${d.token} than it sent across ${totalTxns} transactions.`;
+            summary   = `This wallet received $${fmtAmt(net)} more ${d.token} than it sent across ${totalTxns} transactions.`;
           } else if (net < 0) {
             direction = 'Net Spender';
-            summary   = `This wallet sent ${fmtAmt(Math.abs(net))} more ${d.token} than it received across ${totalTxns} transactions.`;
+            summary   = `This wallet sent $${fmtAmt(Math.abs(net))} more ${d.token} than it received across ${totalTxns} transactions.`;
           } else {
             direction = 'Balanced';
-            summary   = `This wallet moved ${fmtAmt(totalVol)} in ${d.token} and broke even across ${totalTxns} transactions.`;
+            summary   = `This wallet moved $${fmtAmt(totalVol)} in ${d.token} and broke even across ${totalTxns} transactions.`;
           }
 
           // Activity breakdown with percentages
@@ -497,9 +497,9 @@
           let rows = '';
           rows += `<span style="grid-column:1/-1;font-family:inherit;font-size:11px;color:#555;padding-bottom:6px;line-height:1.5">${summary}</span>`;
           rows += `<span style="grid-column:1/-1;border-top:1px solid #e8e8e8;margin-bottom:4px"></span>`;
-          if (d.count_in  > 0) rows += `<span class="label">Money in</span><span class="value">${fmtAmt(d.total_in)} <span style="color:#aaa">(${d.count_in} txns)</span></span>`;
-          if (d.count_out > 0) rows += `<span class="label">Money out</span><span class="value">${fmtAmt(d.total_out)} <span style="color:#aaa">(${d.count_out} txns)</span></span>`;
-          rows += `<span class="label">Net position</span><span class="value" style="font-weight:600">${net >= 0 ? '+' : ''}${fmtAmt(net)}</span>`;
+          if (d.count_in  > 0) rows += `<span class="label">Money in</span><span class="value">$${fmtAmt(d.total_in)} <span style="color:#aaa">(${d.count_in} txns)</span></span>`;
+          if (d.count_out > 0) rows += `<span class="label">Money out</span><span class="value">$${fmtAmt(d.total_out)} <span style="color:#aaa">(${d.count_out} txns)</span></span>`;
+          rows += `<span class="label">Net position</span><span class="value" style="font-weight:600">${net >= 0 ? '+$' : '-$'}${fmtAmt(Math.abs(net))}</span>`;
           rows += `<span class="label">Active</span><span class="value">${dateRange}</span>`;
           rows += `<span class="label">Activity</span><span class="value">${types}</span>`;
 
@@ -511,11 +511,15 @@
         .catch(() => {});
     }
 
-    function makeLabel(name, count) {
+    function makeLabel(name, usdVol) {
       const c   = document.createElement('canvas');
       c.width   = 256;
       c.height  = 80;
       const ctx = c.getContext('2d');
+
+      const volStr = usdVol >= 1e6 ? `$${(usdVol / 1e6).toFixed(1)}M`
+                   : usdVol >= 1e3 ? `$${(usdVol / 1e3).toFixed(0)}K`
+                   : `$${usdVol.toFixed(0)}`;
 
       ctx.font      = 'bold 30px sans-serif';
       ctx.fillStyle = '#000000';
@@ -524,7 +528,7 @@
 
       ctx.font      = '20px sans-serif';
       ctx.fillStyle = '#777777';
-      ctx.fillText(`${count} txns`, 128, 60);
+      ctx.fillText(volStr, 128, 60);
 
       const tex    = new THREE.CanvasTexture(c);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));

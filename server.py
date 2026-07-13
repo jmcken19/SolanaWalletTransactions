@@ -89,14 +89,14 @@ class Handler(BaseHTTPRequestHandler):
                     FROM (
                         SELECT token_in  AS token, amount_in  AS amount
                         FROM transactions
-                        WHERE token_in  IS NOT NULL AND token_in  <> ''
+                        WHERE token_in  IN ('USDC', 'USDT', 'USDH')
                         UNION ALL
                         SELECT token_out AS token, amount_out AS amount
                         FROM transactions
-                        WHERE token_out IS NOT NULL AND token_out <> ''
+                        WHERE token_out IN ('USDC', 'USDT', 'USDH')
                     ) t
                     GROUP BY token
-                    ORDER BY count DESC
+                    ORDER BY total_amount DESC
                     LIMIT 20
                 """)
                 rows = [
