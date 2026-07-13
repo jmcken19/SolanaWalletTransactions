@@ -12,6 +12,7 @@ def summary_by_type(conn) -> None:
                    COUNT(*) AS count,
                    ROUND(SUM(fee) / 1000000000.0, 6) AS total_fees_sol
             FROM transactions
+            WHERE type IN ('TRANSFER', 'SWAP')
             GROUP BY type
             ORDER BY count DESC
         """)

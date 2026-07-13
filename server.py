@@ -89,11 +89,11 @@ class Handler(BaseHTTPRequestHandler):
                     FROM (
                         SELECT token_in  AS token, amount_in  AS amount
                         FROM transactions
-                        WHERE token_in  IS NOT NULL AND token_in  <> ''
+                        WHERE type = 'SWAP' AND token_in  IS NOT NULL AND token_in  <> ''
                         UNION ALL
                         SELECT token_out AS token, amount_out AS amount
                         FROM transactions
-                        WHERE token_out IS NOT NULL AND token_out <> ''
+                        WHERE type = 'SWAP' AND token_out IS NOT NULL AND token_out <> ''
                     ) t
                     GROUP BY token
                     ORDER BY count DESC
