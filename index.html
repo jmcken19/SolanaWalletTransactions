@@ -460,6 +460,23 @@
 
     const STABLECOINS = new Set(['USDC', 'USDT', 'USDH']);
 
+    const SYMBOL_TO_MINT = {
+      'wSOL':    'So11111111111111111111111111111111111111112',
+      'USDC':    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      'USDT':    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+      'USDH':    'USDH1Hdt8P7qTQKDSpeZDnDRKqTucBM5ciqMP2kYtAf',
+      'BONK':    'DezXAZ8z7PnrnRJjz3Fh4Cz9WcbQTUk2e37hTd5C59w',
+      'JUP':     'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+      'JitoSOL': 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn',
+      'mSOL':    'mSoLzYCxNqgBJwTfMxKWR7fmDjnZ7HepfsSwnYwbsR',
+      'bSOL':    'bSo13r4TkiE4G6HUPZepS9z6E6T8Jq3EqW3eJ5W2RCP',
+      'RAY':     '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+      'ORCA':    'orcaEKTdK7LKz57vaAYfXqXbUQmNEw4RkY7qR9VYkq',
+      'WIF':     'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+      'MYRO':    'HhJpBhZc3L4QxrzBFW91tYYQJgWPs2F7GQZpkz7g5Xtg',
+      'SAMO':    '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgTL',
+    };
+
     function fetchTokenDetail(tokenName) {
       Promise.all([
         fetch(`/token_detail?token=${encodeURIComponent(tokenName)}`).then(r => r.json()),
@@ -568,9 +585,14 @@
           rows += `<span class="label">Net position</span><span class="value" style="font-weight:600">${netBase}${netUSD}</span>`;
           rows += `<span class="label">Active</span><span class="value">${dateRange}</span>`;
           rows += `<span class="label">Activity</span><span class="value">${types}</span>`;
-          rows += `<span class="label">Token</span><span class="value" style="display:flex;align-items:center;gap:8px">
-            <span id="token-addr-text" style="word-break:break-all">${d.token}</span>
-            <button onclick="copyTokenAddr()" style="flex-shrink:0;background:transparent;border:1px solid #000;font-family:inherit;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;cursor:pointer">Copy</button>
+          const fullMint  = SYMBOL_TO_MINT[d.token] || null;
+          const addrText  = fullMint || d.token;
+          const addrNote  = fullMint
+            ? `<span style="color:#aaa;font-size:10px"> (full mint address)</span>`
+            : `<span style="color:#aaa;font-size:10px"> (truncated — full address unavailable)</span>`;
+          rows += `<span class="label">Address</span><span class="value" style="line-height:1.8">
+            <span style="word-break:break-all;font-size:11px">${addrText}</span>${addrNote}<br>
+            <button onclick="copyTokenAddr(this)" data-addr="${addrText}" style="margin-top:6px;background:#000;color:#fff;border:none;font-family:inherit;font-size:9px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;padding:5px 14px;cursor:pointer">Copy address</button>
           </span>`;
 
           document.getElementById('token-detail-name').innerHTML =
@@ -581,12 +603,30 @@
         .catch(() => {});
     }
 
-    function copyTokenAddr() {
-      const text = document.getElementById('token-addr-text').textContent.trim();
+    function copyTokenAddr(btn) {
+      const text = btn.getAttribute('data-addr');
       navigator.clipboard.writeText(text).then(() => {
-        const btn = event.target;
         btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+        btn.style.background = '#555';
+        setTimeout(() => {
+          btn.textContent = 'Copy address';
+          btn.style.background = '#000';
+        }, 1500);
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = 'Copied!';
+        btn.style.background = '#555';
+        setTimeout(() => {
+          btn.textContent = 'Copy address';
+          btn.style.background = '#000';
+        }, 1500);
       });
     }
 
