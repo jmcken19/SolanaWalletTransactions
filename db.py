@@ -47,7 +47,7 @@ def insert_transactions(conn, rows: list[dict]) -> int:
             (%(signature)s, %(block_time)s, %(slot)s, %(fee)s, %(status)s,
              %(source)s, %(type)s, %(description)s, %(token_in)s,
              %(token_out)s, %(amount_out)s, %(amount_in)s, %(wallet)s)
-        ON CONFLICT (signature) DO NOTHING
+        ON CONFLICT (signature) DO UPDATE SET wallet = EXCLUDED.wallet
     """
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, sql, rows)
