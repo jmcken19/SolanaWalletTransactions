@@ -29,9 +29,9 @@ def recent_transactions(conn, n: int = 10) -> None:
                 TO_CHAR(TO_TIMESTAMP(block_time), 'Mon DD HH24:MI') AS "Date",
                 type                                             AS "Type",
                 COALESCE(token_in,  '-')                         AS "Received",
-                COALESCE(ROUND(amount_in::numeric,  4)::text, '-') AS "Amt In",
+                COALESCE(TO_CHAR(ROUND(amount_in::numeric,  4), 'FM999,999,999,990.0000'), '-') AS "Amt In",
                 COALESCE(token_out, '-')                         AS "Sent",
-                COALESCE(ROUND(amount_out::numeric, 4)::text, '-') AS "Amt Out"
+                COALESCE(TO_CHAR(ROUND(amount_out::numeric, 4), 'FM999,999,999,990.0000'), '-') AS "Amt Out"
             FROM transactions
             WHERE (token_in  IS NOT NULL AND token_in  <> '')
                OR (token_out IS NOT NULL AND token_out <> '')
@@ -50,9 +50,9 @@ def remaining_transactions(conn) -> None:
                 TO_CHAR(TO_TIMESTAMP(block_time), 'Mon DD HH24:MI') AS "Date",
                 type                                             AS "Type",
                 COALESCE(token_in,  '-')                         AS "Received",
-                COALESCE(ROUND(amount_in::numeric,  4)::text, '-') AS "Amt In",
+                COALESCE(TO_CHAR(ROUND(amount_in::numeric,  4), 'FM999,999,999,990.0000'), '-') AS "Amt In",
                 COALESCE(token_out, '-')                         AS "Sent",
-                COALESCE(ROUND(amount_out::numeric, 4)::text, '-') AS "Amt Out"
+                COALESCE(TO_CHAR(ROUND(amount_out::numeric, 4), 'FM999,999,999,990.0000'), '-') AS "Amt Out"
             FROM transactions
             WHERE (token_in  IS NOT NULL AND token_in  <> '')
                OR (token_out IS NOT NULL AND token_out <> '')
