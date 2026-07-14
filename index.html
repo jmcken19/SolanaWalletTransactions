@@ -158,6 +158,14 @@
       color: #000;
       padding: 14px 24px 0;
     }
+    #bubble-wallet {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: #aaa;
+      padding: 2px 24px 0;
+      font-family: monospace;
+    }
 
     #bubble-placeholder {
       padding: 20px 24px;
@@ -294,6 +302,7 @@
 
     <div id="bubble-wrap">
       <span id="bubble-label">Bubble Map</span>
+      <span id="bubble-wallet"></span>
       <div id="bubble-placeholder">Waiting for input...</div>
       <canvas id="bubble-canvas"></canvas>
       <div id="token-detail">
@@ -379,6 +388,7 @@
       canvas.style.display      = 'none';
       placeholder.style.display = 'block';
       placeholder.textContent   = 'Waiting for input...';
+      document.getElementById('bubble-wallet').textContent = '';
       document.getElementById('token-detail').style.display = 'none';
 
       const es = new EventSource(`/run?wallet=${encodeURIComponent(addr)}`);
@@ -441,13 +451,35 @@
     }
 
     function fetchHoldings(addr) {
+      const walletEl = document.getElementById('bubble-wallet');
+      const short = addr ? addr.slice(0, 4) + '…' + addr.slice(-4) : '';
+      walletEl.textContent = short ? `Loading ${short}…` : '';
+
+      // Clear any previous renderer so stale bubbles cannot persist
+      if (bubbleRenderer) {
+        bubbleAnimating = false;
+        bubbleRenderer.dispose();
+        bubbleRenderer = null;
+      }
+      document.getElementById('bubble-canvas').style.display = 'none';
+      document.getElementById('bubble-placeholder').style.display = 'block';
+      document.getElementById('bubble-placeholder').textContent = 'Loading holdings…';
+
       const url = addr ? `/holdings?wallet=${encodeURIComponent(addr)}` : '/holdings';
       fetch(url)
         .then(r => r.json())
         .then(holdings => {
-          if (holdings.length) renderBubbles(holdings, 'holdings');
+          walletEl.textContent = short ? short : '';
+          if (holdings.length) {
+            renderBubbles(holdings, 'holdings');
+          } else {
+            document.getElementById('bubble-placeholder').textContent = 'No holdings found.';
+          }
         })
-        .catch(() => {});
+        .catch(() => {
+          walletEl.textContent = short ? short + ' (error)' : '';
+          document.getElementById('bubble-placeholder').textContent = 'Failed to load holdings.';
+        });
     }
 
     function renderBubbles(tokens, mode) {
