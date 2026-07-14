@@ -33,6 +33,8 @@ def recent_transactions(conn, n: int = 10) -> None:
                 COALESCE(token_out, '-')                         AS "Sent",
                 COALESCE(ROUND(amount_out::numeric, 4)::text, '-') AS "Amt Out"
             FROM transactions
+            WHERE (token_in  IS NOT NULL AND token_in  <> '')
+               OR (token_out IS NOT NULL AND token_out <> '')
             ORDER BY block_time DESC
             LIMIT %s
         """, (n,))
@@ -52,6 +54,8 @@ def remaining_transactions(conn) -> None:
                 COALESCE(token_out, '-')                         AS "Sent",
                 COALESCE(ROUND(amount_out::numeric, 4)::text, '-') AS "Amt Out"
             FROM transactions
+            WHERE (token_in  IS NOT NULL AND token_in  <> '')
+               OR (token_out IS NOT NULL AND token_out <> '')
             ORDER BY block_time DESC
             LIMIT 490 OFFSET 10
         """)
