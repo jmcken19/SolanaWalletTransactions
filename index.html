@@ -418,7 +418,7 @@
           enterBtn.disabled  = false;
           enterBtn.textContent = 'Enter';
           showAllBtn.style.display = 'block';
-          fetchTokens();
+          fetchHoldings();
           fetchSummary();
           fetchTrend();
           return;
@@ -553,12 +553,21 @@
       fetch('/tokens')
         .then(r => r.json())
         .then(tokens => {
-          if (tokens.length) renderBubbles(tokens);
+          if (tokens.length) renderBubbles(tokens, 'swaps');
         })
         .catch(() => {});
     }
 
-    function renderBubbles(tokens) {
+    function fetchHoldings() {
+      fetch('/holdings')
+        .then(r => r.json())
+        .then(holdings => {
+          if (holdings.length) renderBubbles(holdings, 'holdings');
+        })
+        .catch(() => {});
+    }
+
+    function renderBubbles(tokens, mode) {
       const placeholder = document.getElementById('bubble-placeholder');
       const canvas      = document.getElementById('bubble-canvas');
 
@@ -596,9 +605,12 @@
       controls.autoRotate     = true;
       controls.autoRotateSpeed = 0.6;
 
-      const maxCount = Math.max(...tokens.map(t => t.count)) || 1;
-      const minSize  = 0.5;
+      const minSize  = 0.3;
       const maxSize  = 2.0;
+      const knownVals = mode === 'holdings'
+        ? tokens.filter(t => t.usd_value != null).map(t => t.usd_value)
+        : tokens.map(t => t.count);
+      const maxVal = (knownVals.length ? Math.max(...knownVals) : 1) || 1;
 
       // Ring radius large enough that adjacent bubbles never touch
       const gap  = 0.5;
@@ -613,8 +625,12 @@
 
       tokens.forEach((token, i) => {
         const angle   = (i / tokens.length) * Math.PI * 2;
-        const size    = minSize + (token.count / maxCount) * (maxSize - minSize);
-        const isKnown = token.token in SYMBOL_TO_MINT || STABLECOINS.has(token.token);
+        const size = mode === 'holdings'
+          ? (token.usd_value != null ? minSize + (token.usd_value / maxVal) * (maxSize - minSize) : minSize)
+          : minSize + (token.count / maxVal) * (maxSize - minSize);
+        const isKnown = mode === 'holdings'
+          ? (token.mint in SYMBOL_TO_MINT || STABLECOINS.has(token.symbol))
+          : (token.token in SYMBOL_TO_MINT || STABLECOINS.has(token.token));
 
         // Fill sphere — grey for known tokens, light amber tint for unidentified
         const geo  = new THREE.SphereGeometry(size, 32, 32);
@@ -627,7 +643,7 @@
         mesh.position.set(Math.cos(angle) * ring, 0, Math.sin(angle) * ring);
         scene.add(mesh);
         clickableMeshes.push(mesh);
-        meshTokenMap.set(mesh.uuid, token.token);
+        meshTokenMap.set(mesh.uuid, mode === 'holdings' ? token : token.token);
 
         // Wireframe overlay — more visible for unknown tokens
         const wfMat  = new THREE.MeshBasicMaterial({
@@ -641,7 +657,10 @@
         scene.add(wfMesh);
 
         // Label sprite
-        const label = makeLabel(token.token, token.count);
+        const labelSub = mode === 'holdings'
+          ? (token.usd_value != null ? `$${fmtAmt(token.usd_value)}` : `${fmtAmt(token.amount)} tokens`)
+          : `${token.count} swaps`;
+        const label = makeLabel(mode === 'holdings' ? token.symbol : token.token, labelSub);
         label.position.set(mesh.position.x, mesh.position.y + size + 0.6, mesh.position.z);
         scene.add(label);
       });
@@ -657,7 +676,8 @@
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObjects(clickableMeshes);
         if (hits.length > 0) {
-          fetchTokenDetail(meshTokenMap.get(hits[0].object.uuid));
+          const payload = meshTokenMap.get(hits[0].object.uuid);
+          mode === 'holdings' ? showHoldingDetail(payload) : fetchTokenDetail(payload);
         }
       });
 
@@ -860,7 +880,7 @@
       });
     }
 
-    function makeLabel(name, count) {
+    function makeLabel(name, subtitle) {
       const c   = document.createElement('canvas');
       c.width   = 256;
       c.height  = 80;
@@ -876,12 +896,50 @@
 
       ctx.font      = '20px sans-serif';
       ctx.fillStyle = '#777777';
-      ctx.fillText(`${count} swaps`, 128, 60);
+      ctx.fillText(subtitle, 128, 60);
 
       const tex    = new THREE.CanvasTexture(c);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
       sprite.scale.set(3.2, 1, 1);
       return sprite;
+    }
+
+    function showHoldingDetail(holding) {
+      const isStable = STABLECOINS.has(holding.symbol);
+      const isKnown  = holding.mint in SYMBOL_TO_MINT || isStable;
+
+      let description;
+      if (isStable) {
+        description = `${holding.symbol} is a stablecoin — each unit is pegged to $1 USD.`;
+      } else if (isKnown && holding.price_per_token) {
+        description = `${holding.symbol} is a known Solana token currently worth ~$${fmtAmt(holding.price_per_token)} per token.`;
+      } else if (isKnown) {
+        description = `${holding.symbol} is a known Solana token.`;
+      } else {
+        description = `${holding.symbol} is an unidentified token — likely a meme coin or airdrop with no trackable price.`;
+      }
+
+      const usdDisplay   = holding.usd_value      != null ? `$${fmtAmt(holding.usd_value)}`       : 'price unknown';
+      const priceDisplay = holding.price_per_token != null ? `$${fmtAmt(holding.price_per_token)}` : '—';
+
+      const badge = holding.usd_value != null
+        ? `<span style="font-size:10px;font-weight:400;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-left:8px">Currently Held</span>`
+        : `<span style="font-size:10px;font-weight:400;color:#aaa;text-transform:uppercase;letter-spacing:0.1em;margin-left:8px">No Price Data</span>`;
+
+      let rows = '';
+      rows += `<span style="grid-column:1/-1;font-family:inherit;font-size:11px;color:#555;padding-bottom:8px;line-height:1.7">${description}</span>`;
+      rows += `<span style="grid-column:1/-1;border-top:1px solid #e8e8e8;margin-bottom:4px"></span>`;
+      rows += `<span class="label">Amount held</span><span class="value">${fmtAmt(holding.amount)} ${holding.symbol}</span>`;
+      rows += `<span class="label">USD value</span><span class="value" style="font-weight:600">${usdDisplay}</span>`;
+      rows += `<span class="label">Price / token</span><span class="value">${priceDisplay}</span>`;
+      rows += `<span class="label">Mint address</span><span class="value" style="line-height:1.8">
+        <span style="word-break:break-all;font-size:11px">${holding.mint}</span><br>
+        <button onclick="copyTokenAddr(this)" data-addr="${holding.mint}" style="margin-top:6px;background:#000;color:#fff;border:none;font-family:inherit;font-size:9px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;padding:5px 14px;cursor:pointer">Copy address</button>
+      </span>`;
+
+      document.getElementById('token-detail-name').innerHTML = `${holding.symbol}${badge}`;
+      document.getElementById('token-detail-grid').innerHTML = rows;
+      document.getElementById('token-detail').style.display  = 'block';
     }
   </script>
 </body>

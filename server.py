@@ -7,6 +7,23 @@ import io
 import os
 import json
 
+MINT_TO_SYMBOL = {
+    "So11111111111111111111111111111111111111112":  "wSOL",
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
+    "USDH1Hdt8P7qTQKDSpeZDnDRKqTucBM5ciqMP2kYtAf":  "USDH",
+    "DezXAZ8z7PnrnRJjz3Fh4Cz9WcbQTUk2e37hTd5C59w": "BONK",
+    "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN":  "JUP",
+    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": "JitoSOL",
+    "mSoLzYCxNqgBJwTfMxKWR7fmDjnZ7HepfsSwnYwbsR":   "mSOL",
+    "bSo13r4TkiE4G6HUPZepS9z6E6T8Jq3EqW3eJ5W2RCP":  "bSOL",
+    "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R": "RAY",
+    "orcaEKTdK7LKz57vaAYfXqXbUQmNEw4RkY7qR9VYkq":   "ORCA",
+    "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": "WIF",
+    "HhJpBhZc3L4QxrzBFW91tYYQJgWPs2F7GQZpkz7g5Xtg": "MYRO",
+    "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgTL":  "SAMO",
+}
+
 
 class Handler(BaseHTTPRequestHandler):
 
@@ -33,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
             self._get_summary()
         elif parsed.path == "/trend":
             self._get_trend()
+        elif parsed.path == "/holdings":
+            self._get_holdings()
         else:
             self.send_error(404)
 
@@ -320,23 +339,6 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(err)
 
     def _get_prices(self):
-        # Mint addresses for tokens we recognise, keyed by symbol stored in DB
-        MINT_TO_SYMBOL = {
-            "So11111111111111111111111111111111111111112": "wSOL",
-            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
-            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
-            "USDH1Hdt8P7qTQKDSpeZDnDRKqTucBM5ciqMP2kYtAf": "USDH",
-            "DezXAZ8z7PnrnRJjz3Fh4Cz9WcbQTUk2e37hTd5C59w": "BONK",
-            "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": "JUP",
-            "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": "JitoSOL",
-            "mSoLzYCxNqgBJwTfMxKWR7fmDjnZ7HepfsSwnYwbsR": "mSOL",
-            "bSo13r4TkiE4G6HUPZepS9z6E6T8Jq3EqW3eJ5W2RCP": "bSOL",
-            "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R": "RAY",
-            "orcaEKTdK7LKz57vaAYfXqXbUQmNEw4RkY7qR9VYkq":  "ORCA",
-            "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": "WIF",
-            "HhJpBhZc3L4QxrzBFW91tYYQJgWPs2F7GQZpkz7g5Xtg": "MYRO",
-            "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgTL": "SAMO",
-        }
         try:
             mints = ",".join(MINT_TO_SYMBOL.keys())
             url = f"https://api.jup.ag/price/v2?ids={mints}"
@@ -364,6 +366,88 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(empty)))
             self.end_headers()
             self.wfile.write(empty)
+
+    def _get_holdings(self):
+        try:
+            from config import API_KEY, WALLET
+
+            SOL_MINT = "So11111111111111111111111111111111111111112"
+
+            # 1. Fetch raw balances from Helius
+            url = f"https://api.helius.xyz/v0/addresses/{WALLET}/balances?api-key={API_KEY}"
+            req = urllib.request.Request(url, headers={"User-Agent": "SolanaTracker/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                raw = json.loads(resp.read())
+
+            # 2. Build token list with decimal adjustment
+            entries = []
+
+            # Native SOL
+            sol_amount = int(raw.get("nativeBalance", 0)) / 1e9
+            entries.append({"mint": SOL_MINT, "symbol": "wSOL", "amount": sol_amount})
+
+            # SPL tokens
+            for t in raw.get("tokens", []):
+                mint     = t.get("mint", "")
+                raw_amt  = int(t.get("amount", 0))
+                decimals = int(t.get("decimals", 0))
+                amount   = raw_amt / (10 ** decimals) if decimals >= 0 else raw_amt
+                symbol   = MINT_TO_SYMBOL.get(mint) or (
+                    mint[:6] + "\u2026" + mint[-4:] if len(mint) > 10 else mint
+                )
+                entries.append({"mint": mint, "symbol": symbol, "amount": amount})
+
+            # 3. Fetch prices for all mints in one Jupiter call
+            all_mints = [e["mint"] for e in entries]
+            price_url = "https://api.jup.ag/price/v2?ids=" + ",".join(all_mints)
+            price_req = urllib.request.Request(price_url, headers={"User-Agent": "SolanaTracker/1.0"})
+            try:
+                with urllib.request.urlopen(price_req, timeout=5) as presp:
+                    price_raw = json.loads(presp.read())
+                price_map = {
+                    mint: float(info["price"])
+                    for mint, info in price_raw.get("data", {}).items()
+                    if info and info.get("price")
+                }
+            except Exception:
+                price_map = {}
+
+            # 4. Compute USD values and filter dust
+            holdings = []
+            for e in entries:
+                price     = price_map.get(e["mint"])
+                usd_value = e["amount"] * price if price is not None else None
+
+                if usd_value is None and e["amount"] < 0.000001:
+                    continue
+                if usd_value is not None and usd_value < 0.01:
+                    continue
+
+                holdings.append({
+                    "mint":            e["mint"],
+                    "symbol":          e["symbol"],
+                    "amount":          e["amount"],
+                    "usd_value":       usd_value,
+                    "price_per_token": price,
+                })
+
+            # 5. Sort: largest USD value first, no-price tokens last
+            holdings.sort(key=lambda h: (h["usd_value"] is None, -(h["usd_value"] or 0)))
+
+            data = json.dumps(holdings).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        except Exception as e:
+            err = json.dumps({"error": str(e)}).encode()
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(err)))
+            self.end_headers()
+            self.wfile.write(err)
 
     def _send_event(self, text):
         try:
