@@ -408,7 +408,10 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 entries.append({"mint": mint, "symbol": symbol, "amount": ui_amt})
 
-            # 3. Fetch prices for all mints in one Jupiter call
+            # 3. Filter out zero-balance entries before price lookup
+            entries = [e for e in entries if e["amount"] > 0]
+
+            # 4. Fetch prices only for non-zero mints (avoids 414 on large wallets)
             all_mints = [e["mint"] for e in entries]
             price_url = "https://api.jup.ag/price/v2?ids=" + ",".join(all_mints)
             price_req = urllib.request.Request(price_url, headers={"User-Agent": "SolanaTracker/1.0"})
@@ -423,7 +426,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 price_map = {}
 
-            # 4. Compute USD values and filter dust
+            # 5. Compute USD values and filter dust
             holdings = []
             for e in entries:
                 price     = price_map.get(e["mint"])
