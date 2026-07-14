@@ -607,10 +607,12 @@
 
       const minSize  = 0.3;
       const maxSize  = 2.0;
+      // Log scale so small holdings stay visible when one token dominates
+      const logVal    = v => v > 0 ? Math.log10(v + 1) : 0;
       const knownVals = mode === 'holdings'
         ? tokens.filter(t => t.usd_value != null).map(t => t.usd_value)
         : tokens.map(t => t.count);
-      const maxVal = (knownVals.length ? Math.max(...knownVals) : 1) || 1;
+      const maxLog = logVal((knownVals.length ? Math.max(...knownVals) : 1) || 1);
 
       // Ring radius large enough that adjacent bubbles never touch
       const gap  = 0.5;
@@ -626,8 +628,8 @@
       tokens.forEach((token, i) => {
         const angle   = (i / tokens.length) * Math.PI * 2;
         const size = mode === 'holdings'
-          ? (token.usd_value != null ? minSize + (token.usd_value / maxVal) * (maxSize - minSize) : minSize)
-          : minSize + (token.count / maxVal) * (maxSize - minSize);
+          ? (token.usd_value != null ? minSize + (logVal(token.usd_value) / maxLog) * (maxSize - minSize) : minSize)
+          : minSize + (logVal(token.count) / maxLog) * (maxSize - minSize);
         const isKnown = mode === 'holdings'
           ? (token.mint in SYMBOL_TO_MINT || STABLECOINS.has(token.symbol))
           : (token.token in SYMBOL_TO_MINT || STABLECOINS.has(token.token));

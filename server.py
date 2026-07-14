@@ -384,17 +384,23 @@ class Handler(BaseHTTPRequestHandler):
             sol_lamports = rpc("getBalance", [WALLET]).get("value", 0)
             sol_amount   = float(sol_lamports) / 1e9
 
-            # 2. SPL token accounts (jsonParsed gives decimal-adjusted uiAmount)
-            token_result = rpc("getTokenAccountsByOwner", [
-                WALLET,
-                {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
-                {"encoding": "jsonParsed"},
-            ])
+            # 2. SPL token accounts — both legacy Token program and Token-2022
+            SPL_PROGRAM    = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            TOKEN22_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+
+            all_accounts = []
+            for program_id in (SPL_PROGRAM, TOKEN22_PROGRAM):
+                result = rpc("getTokenAccountsByOwner", [
+                    WALLET,
+                    {"programId": program_id},
+                    {"encoding": "jsonParsed"},
+                ])
+                all_accounts.extend(result.get("value") or [])
 
             entries = [{"mint": SOL_MINT, "symbol": "wSOL", "amount": sol_amount}]
 
-            for acct in (token_result.get("value") or []):
-                info = acct["account"]["data"]["parsed"]["info"]
+            for acct in all_accounts:
+                info   = acct["account"]["data"]["parsed"]["info"]
                 mint   = info["mint"]
                 ui_amt = float(info["tokenAmount"]["uiAmount"] or 0)
                 symbol = MINT_TO_SYMBOL.get(mint) or (
