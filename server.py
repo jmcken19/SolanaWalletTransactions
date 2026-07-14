@@ -341,16 +341,16 @@ class Handler(BaseHTTPRequestHandler):
     def _get_prices(self):
         try:
             mints = ",".join(MINT_TO_SYMBOL.keys())
-            url = f"https://api.jup.ag/price/v2?ids={mints}"
+            url = f"https://lite-api.jup.ag/price/v3?ids={mints}"
             req = urllib.request.Request(url, headers={"User-Agent": "SolanaTracker/1.0"})
             with urllib.request.urlopen(req, timeout=5) as resp:
                 raw = json.loads(resp.read())
 
             prices = {}
-            for mint, info in raw.get("data", {}).items():
+            for mint, info in raw.items():
                 symbol = MINT_TO_SYMBOL.get(mint)
-                if symbol and info and info.get("price"):
-                    prices[symbol] = float(info["price"])
+                if symbol and info and info.get("usdPrice"):
+                    prices[symbol] = float(info["usdPrice"])
 
             data = json.dumps(prices).encode()
             self.send_response(200)
@@ -413,15 +413,15 @@ class Handler(BaseHTTPRequestHandler):
 
             # 4. Fetch prices only for non-zero mints (avoids 414 on large wallets)
             all_mints = [e["mint"] for e in entries]
-            price_url = "https://api.jup.ag/price/v2?ids=" + ",".join(all_mints)
+            price_url = "https://lite-api.jup.ag/price/v3?ids=" + ",".join(all_mints)
             price_req = urllib.request.Request(price_url, headers={"User-Agent": "SolanaTracker/1.0"})
             try:
                 with urllib.request.urlopen(price_req, timeout=5) as presp:
                     price_raw = json.loads(presp.read())
                 price_map = {
-                    mint: float(info["price"])
-                    for mint, info in price_raw.get("data", {}).items()
-                    if info and info.get("price")
+                    mint: float(info["usdPrice"])
+                    for mint, info in price_raw.items()
+                    if info and info.get("usdPrice")
                 }
             except Exception:
                 price_map = {}
