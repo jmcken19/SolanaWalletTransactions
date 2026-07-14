@@ -8,7 +8,7 @@ import os
 import json
 
 MINT_TO_SYMBOL = {
-    "So11111111111111111111111111111111111111112":  "wSOL",
+    "So11111111111111111111111111111111111111112":  "SOL",
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
     "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
     "USDH1Hdt8P7qTQKDSpeZDnDRKqTucBM5ciqMP2kYtAf":  "USDH",
@@ -400,7 +400,7 @@ class Handler(BaseHTTPRequestHandler):
                 ])
                 all_accounts.extend(result.get("value") or [])
 
-            entries = [{"mint": SOL_MINT, "symbol": "wSOL", "amount": sol_amount}]
+            entries = [{"mint": SOL_MINT, "symbol": "SOL", "amount": sol_amount}]
 
             for acct in all_accounts:
                 info   = acct["account"]["data"]["parsed"]["info"]
