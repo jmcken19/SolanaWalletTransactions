@@ -51,7 +51,9 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/trend":
             self._get_trend()
         elif parsed.path == "/holdings":
-            self._get_holdings()
+            params = parse_qs(parsed.query)
+            wallet = params.get("wallet", [""])[0].strip()
+            self._get_holdings(wallet)
         else:
             self.send_error(404)
 
@@ -367,9 +369,10 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(empty)
 
-    def _get_holdings(self):
+    def _get_holdings(self, wallet_param=""):
         try:
-            from config import API_KEY, WALLET
+            from config import API_KEY, WALLET as CONFIG_WALLET
+            wallet = wallet_param or CONFIG_WALLET
 
             SOL_MINT = "So11111111111111111111111111111111111111112"
             RPC_URL  = f"https://mainnet.helius-rpc.com/?api-key={API_KEY}"
@@ -381,7 +384,7 @@ class Handler(BaseHTTPRequestHandler):
                     return json.loads(resp.read()).get("result", {})
 
             # 1. Native SOL balance
-            sol_lamports = rpc("getBalance", [WALLET]).get("value", 0)
+            sol_lamports = rpc("getBalance", [wallet]).get("value", 0)
             sol_amount   = float(sol_lamports) / 1e9
 
             # 2. SPL token accounts — both legacy Token program and Token-2022
@@ -391,7 +394,7 @@ class Handler(BaseHTTPRequestHandler):
             all_accounts = []
             for program_id in (SPL_PROGRAM, TOKEN22_PROGRAM):
                 result = rpc("getTokenAccountsByOwner", [
-                    WALLET,
+                    wallet,
                     {"programId": program_id},
                     {"encoding": "jsonParsed"},
                 ])

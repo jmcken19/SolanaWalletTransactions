@@ -391,7 +391,7 @@
           enterBtn.disabled  = false;
           enterBtn.textContent = 'Enter';
           showAllBtn.style.display = 'block';
-          fetchHoldings();
+          fetchHoldings(addr);
           fetchSummary();
           return;
         }
@@ -440,8 +440,9 @@
         .catch(() => {});
     }
 
-    function fetchHoldings() {
-      fetch('/holdings')
+    function fetchHoldings(addr) {
+      const url = addr ? `/holdings?wallet=${encodeURIComponent(addr)}` : '/holdings';
+      fetch(url)
         .then(r => r.json())
         .then(holdings => {
           if (holdings.length) renderBubbles(holdings, 'holdings');
