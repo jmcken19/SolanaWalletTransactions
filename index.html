@@ -279,7 +279,7 @@
     <div class="stat-cell">
       <span class="stat-label">Total Fees Paid</span>
       <span class="stat-value" id="stat-fees">—</span>
-      <span class="stat-sub">in SOL</span>
+      <span class="stat-sub" id="stat-fees-usd">in SOL</span>
     </div>
     <div class="stat-cell">
       <span class="stat-label">Active Trading Days</span>
@@ -422,19 +422,24 @@
     let bubbleAnimating = false;
 
     function fetchSummary() {
-      fetch('/summary')
-        .then(r => r.json())
-        .then(s => {
+      Promise.all([
+        fetch('/summary').then(r => r.json()),
+        fetch('/prices').then(r => r.json()).catch(() => ({})),
+      ]).then(([s, prices]) => {
           const first  = s.first_txn ? s.first_txn.slice(0, 10) : '—';
           const last   = s.last_txn  ? s.last_txn.slice(0, 10)  : '—';
           const period = first === last ? first : `${first} → ${last}`;
 
-          document.getElementById('stat-total').textContent      = s.total_txns.toLocaleString();
-          document.getElementById('stat-period').textContent     = period;
-          document.getElementById('stat-fees').textContent       = `${fmtAmt(s.total_fees)} SOL`;
+          const solPrice   = prices['SOL'] || null;
+          const feesUSD    = solPrice ? `≈ $${fmtAmt(s.total_fees * solPrice)} USD` : 'in SOL';
+
+          document.getElementById('stat-total').textContent       = s.total_txns.toLocaleString();
+          document.getElementById('stat-period').textContent      = period;
+          document.getElementById('stat-fees').textContent        = `${fmtAmt(s.total_fees)} SOL`;
+          document.getElementById('stat-fees-usd').textContent    = feesUSD;
           document.getElementById('stat-active-days').textContent = s.active_days.toLocaleString();
-          document.getElementById('stat-tokens').textContent     = `${s.unique_tokens} unique tokens`;
-          document.getElementById('stat-top-token').textContent  = s.top_token || '—';
+          document.getElementById('stat-tokens').textContent      = `${s.unique_tokens} unique tokens`;
+          document.getElementById('stat-top-token').textContent   = s.top_token || '—';
           document.getElementById('summary-bar').classList.add('visible');
         })
         .catch(() => {});
