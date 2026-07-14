@@ -546,7 +546,7 @@
           ? (token.usd_value != null ? minSize + (logVal(token.usd_value) / maxLog) * (maxSize - minSize) : minSize)
           : minSize + (logVal(token.count) / maxLog) * (maxSize - minSize);
         const isKnown = mode === 'holdings'
-          ? (token.mint in SYMBOL_TO_MINT || STABLECOINS.has(token.symbol))
+          ? (token.symbol in SYMBOL_TO_MINT || STABLECOINS.has(token.symbol))
           : (token.token in SYMBOL_TO_MINT || STABLECOINS.has(token.token));
 
         // Fill sphere — grey for known tokens, light amber tint for unidentified
@@ -628,7 +628,7 @@
     const STABLECOINS = new Set(['USDC', 'USDT', 'USDH']);
 
     const SYMBOL_TO_MINT = {
-      'wSOL':    'So11111111111111111111111111111111111111112',
+      'SOL':     'So11111111111111111111111111111111111111112',
       'USDC':    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       'USDT':    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
       'USDH':    'USDH1Hdt8P7qTQKDSpeZDnDRKqTucBM5ciqMP2kYtAf',
@@ -823,7 +823,7 @@
 
     function showHoldingDetail(holding) {
       const isStable = STABLECOINS.has(holding.symbol);
-      const isKnown  = holding.mint in SYMBOL_TO_MINT || isStable;
+      const isKnown  = holding.symbol in SYMBOL_TO_MINT || isStable;
 
       let description;
       if (isStable) {
