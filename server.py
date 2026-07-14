@@ -383,15 +383,20 @@ class Handler(BaseHTTPRequestHandler):
             entries = []
 
             # Native SOL
-            sol_amount = int(raw.get("nativeBalance", 0)) / 1e9
+            sol_amount = float(raw.get("nativeBalance", 0) or 0) / 1e9
             entries.append({"mint": SOL_MINT, "symbol": "wSOL", "amount": sol_amount})
 
             # SPL tokens
             for t in raw.get("tokens", []):
                 mint     = t.get("mint", "")
-                raw_amt  = int(t.get("amount", 0))
-                decimals = int(t.get("decimals", 0))
-                amount   = raw_amt / (10 ** decimals) if decimals >= 0 else raw_amt
+                # Use uiAmount if available (already decimal-adjusted); otherwise compute manually
+                ui = (t.get("tokenAmount") or {}).get("uiAmount")
+                if ui is not None:
+                    amount = float(ui)
+                else:
+                    raw_amt  = float(t.get("amount", 0) or 0)
+                    decimals = int(t.get("decimals", 0) or 0)
+                    amount   = raw_amt / (10 ** decimals) if decimals >= 0 else raw_amt
                 symbol   = MINT_TO_SYMBOL.get(mint) or (
                     mint[:6] + "\u2026" + mint[-4:] if len(mint) > 10 else mint
                 )
@@ -442,6 +447,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()   # prints full traceback to server terminal
             err = json.dumps({"error": str(e)}).encode()
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
