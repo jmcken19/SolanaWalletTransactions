@@ -372,35 +372,35 @@ class Handler(BaseHTTPRequestHandler):
             from config import API_KEY, WALLET
 
             SOL_MINT = "So11111111111111111111111111111111111111112"
+            RPC_URL  = f"https://mainnet.helius-rpc.com/?api-key={API_KEY}"
 
-            # 1. Fetch raw balances from Helius
-            url = f"https://api.helius.xyz/v0/addresses/{WALLET}/balances?api-key={API_KEY}"
-            req = urllib.request.Request(url, headers={"User-Agent": "SolanaTracker/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                raw = json.loads(resp.read())
+            def rpc(method, params):
+                body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+                req  = urllib.request.Request(RPC_URL, data=body, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    return json.loads(resp.read()).get("result", {})
 
-            # 2. Build token list with decimal adjustment
-            entries = []
+            # 1. Native SOL balance
+            sol_lamports = rpc("getBalance", [WALLET]).get("value", 0)
+            sol_amount   = float(sol_lamports) / 1e9
 
-            # Native SOL
-            sol_amount = float(raw.get("nativeBalance", 0) or 0) / 1e9
-            entries.append({"mint": SOL_MINT, "symbol": "wSOL", "amount": sol_amount})
+            # 2. SPL token accounts (jsonParsed gives decimal-adjusted uiAmount)
+            token_result = rpc("getTokenAccountsByOwner", [
+                WALLET,
+                {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
+                {"encoding": "jsonParsed"},
+            ])
 
-            # SPL tokens
-            for t in raw.get("tokens", []):
-                mint     = t.get("mint", "")
-                # Use uiAmount if available (already decimal-adjusted); otherwise compute manually
-                ui = (t.get("tokenAmount") or {}).get("uiAmount")
-                if ui is not None:
-                    amount = float(ui)
-                else:
-                    raw_amt  = float(t.get("amount", 0) or 0)
-                    decimals = int(t.get("decimals", 0) or 0)
-                    amount   = raw_amt / (10 ** decimals) if decimals >= 0 else raw_amt
-                symbol   = MINT_TO_SYMBOL.get(mint) or (
+            entries = [{"mint": SOL_MINT, "symbol": "wSOL", "amount": sol_amount}]
+
+            for acct in (token_result.get("value") or []):
+                info = acct["account"]["data"]["parsed"]["info"]
+                mint   = info["mint"]
+                ui_amt = float(info["tokenAmount"]["uiAmount"] or 0)
+                symbol = MINT_TO_SYMBOL.get(mint) or (
                     mint[:6] + "\u2026" + mint[-4:] if len(mint) > 10 else mint
                 )
-                entries.append({"mint": mint, "symbol": symbol, "amount": amount})
+                entries.append({"mint": mint, "symbol": symbol, "amount": ui_amt})
 
             # 3. Fetch prices for all mints in one Jupiter call
             all_mints = [e["mint"] for e in entries]
