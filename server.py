@@ -408,8 +408,21 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 entries.append({"mint": mint, "symbol": symbol, "amount": ui_amt})
 
-            # 3. Filter out zero-balance entries before price lookup
-            entries = [e for e in entries if e["amount"] > 0]
+            # 3. Filter: must hold more than 1 token (drops dust/airdrops)
+            entries = [e for e in entries if e["amount"] > 1]
+
+            # 3b. Lookup proper names for unknown tokens via Helius DAS getAsset
+            for e in entries:
+                if e["mint"] in MINT_TO_SYMBOL:
+                    continue
+                try:
+                    asset  = rpc("getAsset", {"id": e["mint"]})
+                    symbol = ((asset.get("token_info") or {}).get("symbol") or
+                              (asset.get("content", {}).get("metadata") or {}).get("symbol"))
+                    if symbol:
+                        e["symbol"] = symbol
+                except Exception:
+                    pass  # keep shortened mint as fallback
 
             # 4. Fetch prices only for non-zero mints (avoids 414 on large wallets)
             all_mints = [e["mint"] for e in entries]
