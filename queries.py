@@ -8,26 +8,30 @@ def _cursor(conn):
 def summary_by_type(conn) -> None:
     with _cursor(conn) as cur:
         cur.execute("""
-            SELECT type,
-                   COUNT(*) AS count,
-                   ROUND(SUM(fee) / 1000000000.0, 6) AS total_fees_sol
+            SELECT
+                type                                        AS "Type",
+                COUNT(*)                                    AS "Transactions",
+                ROUND(SUM(fee) / 1000000000.0, 6)          AS "Fees (SOL)"
             FROM transactions
             WHERE type IN ('TRANSFER', 'SWAP')
             GROUP BY type
-            ORDER BY count DESC
+            ORDER BY "Transactions" DESC
         """)
         rows = cur.fetchall()
-    pretty_table(rows, title="Transactions by type")
+    pretty_table(rows, title="Activity Breakdown")
 
 
 def recent_transactions(conn, n: int = 10) -> None:
     with _cursor(conn) as cur:
         cur.execute("""
-            SELECT SUBSTRING(signature, 1, 8) || '...' AS signature,
-                   TO_TIMESTAMP(block_time)::TEXT        AS time,
-                   type, token_in, amount_in,
-                   token_out, amount_out,
-                   ROUND(fee / 1000000000.0, 6)         AS fee_sol
+            SELECT
+                SUBSTRING(signature, 1, 8) || '...'             AS "ID",
+                TO_CHAR(TO_TIMESTAMP(block_time), 'Mon DD HH24:MI') AS "Date",
+                type                                             AS "Type",
+                COALESCE(token_in,  '-')                         AS "Received",
+                COALESCE(ROUND(amount_in::numeric,  4)::text, '-') AS "Amt In",
+                COALESCE(token_out, '-')                         AS "Sent",
+                COALESCE(ROUND(amount_out::numeric, 4)::text, '-') AS "Amt Out"
             FROM transactions
             ORDER BY block_time DESC
             LIMIT %s
@@ -39,11 +43,14 @@ def recent_transactions(conn, n: int = 10) -> None:
 def remaining_transactions(conn) -> None:
     with _cursor(conn) as cur:
         cur.execute("""
-            SELECT SUBSTRING(signature, 1, 8) || '...' AS signature,
-                   TO_TIMESTAMP(block_time)::TEXT        AS time,
-                   type, token_in, amount_in,
-                   token_out, amount_out,
-                   ROUND(fee / 1000000000.0, 6)         AS fee_sol
+            SELECT
+                SUBSTRING(signature, 1, 8) || '...'             AS "ID",
+                TO_CHAR(TO_TIMESTAMP(block_time), 'Mon DD HH24:MI') AS "Date",
+                type                                             AS "Type",
+                COALESCE(token_in,  '-')                         AS "Received",
+                COALESCE(ROUND(amount_in::numeric,  4)::text, '-') AS "Amt In",
+                COALESCE(token_out, '-')                         AS "Sent",
+                COALESCE(ROUND(amount_out::numeric, 4)::text, '-') AS "Amt Out"
             FROM transactions
             ORDER BY block_time DESC
             LIMIT 490 OFFSET 10
@@ -55,9 +62,10 @@ def remaining_transactions(conn) -> None:
 def failed_transactions(conn) -> None:
     with _cursor(conn) as cur:
         cur.execute("""
-            SELECT signature,
-                   TO_TIMESTAMP(block_time)::TEXT AS time,
-                   description
+            SELECT
+                SUBSTRING(signature, 1, 8) || '...' AS "ID",
+                TO_CHAR(TO_TIMESTAMP(block_time), 'Mon DD HH24:MI') AS "Date",
+                description                          AS "Description"
             FROM transactions
             WHERE status = 'failed'
         """)
@@ -71,22 +79,14 @@ def pretty_table(rows, title: str = "") -> None:
 
     headers = list(rows[0].keys())
     widths = [
-        max(len(headers[i]), max(len(str(row[headers[i]])) for row in rows))
+        max(len(headers[i]), max(len(str(row[headers[i]] or '')) for row in rows))
         for i in range(len(headers))
     ]
 
-    print(f"\n{title}")
+    if title:
+        print(f"\n{title}")
     print("  ".join(h.ljust(widths[i]) for i, h in enumerate(headers)))
     print("  ".join("-" * w for w in widths))
 
-    def fmt(val):
-        if val is None:
-            return ""
-        try:
-            f = float(val)
-            return str(int(f)) if f == int(f) else f"{f:.6f}"
-        except (TypeError, ValueError):
-            return str(val)
-
     for row in rows:
-        print("  ".join(fmt(row[h]).ljust(widths[i]) for i, h in enumerate(headers)))
+        print("  ".join(str(row[h] or '-').ljust(widths[i]) for i, h in enumerate(headers)))

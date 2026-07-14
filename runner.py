@@ -14,15 +14,15 @@ def main(wallet: str) -> None:
         cur.execute("DELETE FROM transactions")
     conn.commit()
 
-    print(f"Fetching transactions for {wallet[:8]}...")
+    print(f"Analyzing wallet {wallet[:8]}...")
     raw = fetch_transactions(wallet)
-    print(f"  Got {len(raw)} raw records")
+    print(f"  Fetched {len(raw)} transactions from chain")
 
     rows = parse_transactions(raw)
-    print(f"  Parsed {len(rows)} valid rows")
+    print(f"  Processed {len(rows)} valid entries")
 
     inserted = insert_transactions(conn, rows)
-    print(f"  Inserted {inserted} new rows into DB\n")
+    print(f"  Saved {inserted} new records\n")
 
     queries.summary_by_type(conn)
     queries.recent_transactions(conn)
