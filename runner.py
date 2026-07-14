@@ -9,6 +9,11 @@ def main(wallet: str) -> None:
     conn = get_connection()
     create_schema(conn)
 
+    # Wipe previous wallet's data so stats only reflect the current wallet
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM transactions")
+    conn.commit()
+
     print(f"Fetching transactions for {wallet[:8]}...")
     raw = fetch_transactions(wallet)
     print(f"  Got {len(raw)} raw records")
