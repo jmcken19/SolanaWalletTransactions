@@ -277,19 +277,19 @@
       <span class="stat-sub" id="stat-period">—</span>
     </div>
     <div class="stat-cell">
-      <span class="stat-label">USD Received</span>
-      <span class="stat-value" id="stat-usd-in">—</span>
-      <span class="stat-sub">stablecoins only</span>
+      <span class="stat-label">Total Fees Paid</span>
+      <span class="stat-value" id="stat-fees">—</span>
+      <span class="stat-sub">in SOL</span>
     </div>
     <div class="stat-cell">
-      <span class="stat-label">USD Sent</span>
-      <span class="stat-value" id="stat-usd-out">—</span>
-      <span class="stat-sub">stablecoins only</span>
-    </div>
-    <div class="stat-cell">
-      <span class="stat-label">Net USD Position</span>
-      <span class="stat-value" id="stat-net">—</span>
+      <span class="stat-label">Active Trading Days</span>
+      <span class="stat-value" id="stat-active-days">—</span>
       <span class="stat-sub" id="stat-tokens">—</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-label">Most Traded Token</span>
+      <span class="stat-value" id="stat-top-token">—</span>
+      <span class="stat-sub">by frequency</span>
     </div>
   </div>
 
@@ -425,17 +425,16 @@
       fetch('/summary')
         .then(r => r.json())
         .then(s => {
-          const net    = s.usd_in - s.usd_out;
           const first  = s.first_txn ? s.first_txn.slice(0, 10) : '—';
           const last   = s.last_txn  ? s.last_txn.slice(0, 10)  : '—';
           const period = first === last ? first : `${first} → ${last}`;
 
-          document.getElementById('stat-total').textContent  = s.total_txns.toLocaleString();
-          document.getElementById('stat-period').textContent = period;
-          document.getElementById('stat-usd-in').textContent = `$${fmtAmt(s.usd_in)}`;
-          document.getElementById('stat-usd-out').textContent = `$${fmtAmt(s.usd_out)}`;
-          document.getElementById('stat-net').textContent    = `${net >= 0 ? '+' : ''}$${fmtAmt(net)}`;
-          document.getElementById('stat-tokens').textContent = `${s.unique_tokens} unique tokens`;
+          document.getElementById('stat-total').textContent      = s.total_txns.toLocaleString();
+          document.getElementById('stat-period').textContent     = period;
+          document.getElementById('stat-fees').textContent       = `${fmtAmt(s.total_fees)} SOL`;
+          document.getElementById('stat-active-days').textContent = s.active_days.toLocaleString();
+          document.getElementById('stat-tokens').textContent     = `${s.unique_tokens} unique tokens`;
+          document.getElementById('stat-top-token').textContent  = s.top_token || '—';
           document.getElementById('summary-bar').classList.add('visible');
         })
         .catch(() => {});

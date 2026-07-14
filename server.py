@@ -253,10 +253,8 @@ class Handler(BaseHTTPRequestHandler):
                         COUNT(*)                                                      AS total_txns,
                         TO_TIMESTAMP(MIN(block_time))::TEXT                           AS first_txn,
                         TO_TIMESTAMP(MAX(block_time))::TEXT                           AS last_txn,
-                        COALESCE(SUM(CASE WHEN token_in  IN ('USDC','USDT','USDH')
-                                         THEN amount_in  ELSE 0 END), 0)              AS usd_in,
-                        COALESCE(SUM(CASE WHEN token_out IN ('USDC','USDT','USDH')
-                                         THEN amount_out ELSE 0 END), 0)              AS usd_out
+                        COALESCE(SUM(fee), 0) / 1e9                                   AS total_fees,
+                        COUNT(DISTINCT DATE(TO_TIMESTAMP(block_time)))                AS active_days
                     FROM transactions
                 """)
                 row = dict(cur.fetchone())
@@ -272,15 +270,31 @@ class Handler(BaseHTTPRequestHandler):
                     ) t
                 """)
                 row["unique_tokens"] = cur.fetchone()["unique_tokens"]
+
+                cur.execute("""
+                    SELECT token, COUNT(*) AS cnt
+                    FROM (
+                        SELECT token_in  AS token FROM transactions
+                        WHERE token_in  IS NOT NULL AND token_in  <> ''
+                        UNION ALL
+                        SELECT token_out AS token FROM transactions
+                        WHERE token_out IS NOT NULL AND token_out <> ''
+                    ) t
+                    GROUP BY token ORDER BY cnt DESC LIMIT 1
+                """)
+                top = cur.fetchone()
+                row["top_token"] = top["token"] if top else ""
+
             conn.close()
 
             result = {
                 "total_txns":    int(row["total_txns"]),
                 "first_txn":     str(row["first_txn"] or ""),
                 "last_txn":      str(row["last_txn"]  or ""),
-                "usd_in":        float(row["usd_in"]),
-                "usd_out":       float(row["usd_out"]),
+                "total_fees":    float(row["total_fees"]),
+                "active_days":   int(row["active_days"]),
                 "unique_tokens": int(row["unique_tokens"]),
+                "top_token":     str(row["top_token"]),
             }
             data = json.dumps(result).encode()
             self.send_response(200)
